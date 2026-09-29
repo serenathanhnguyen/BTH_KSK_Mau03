@@ -11,6 +11,7 @@ nhieu lan trong qua trinh lam thu cong truoc khi co ung dung nay).
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.page import PageMargins
 
 THIN = Side(style="thin", color="000000")
 BORDER = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
@@ -197,8 +198,25 @@ def build_report(records, enabled_columns, meta, out_path):
             ws.column_dimensions[letter].width = 12
 
     ws.print_title_rows = f"{HEADER_ROW}:{SUBHEADER_ROW}"
-    ws.page_setup.orientation = "landscape"
     ws.print_area = f"A1:{get_column_letter(n_cols)}{name_row}"
+    _set_a4_landscape_fit_width(ws)
 
     wb.save(out_path)
     return out_path
+
+
+def _set_a4_landscape_fit_width(ws):
+    """In vừa 1 trang KHỔ NGANG A4 theo chiều rộng: toàn bộ số cột nằm gọn
+    trên 1 trang ngang, số dòng thì tự chảy xuống nhiều trang nếu cần (không
+    ép co chữ theo chiều cao — chỉ ép vừa khổ ngang).
+    Lưu ý: chỉ đặt fitToWidth/fitToHeight KHÔNG đủ để Excel áp dụng — phải
+    bật thêm cờ pageSetUpPr.fitToPage, nếu không Excel vẫn in theo scale 100%
+    mặc định và bảng nhiều cột sẽ bị tràn/cắt trang ngang."""
+    ws.page_setup.orientation = "landscape"
+    ws.page_setup.paperSize = ws.PAPERSIZE_A4
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 0  # 0 = không giới hạn số trang theo chiều dọc
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+    ws.page_margins = PageMargins(
+        left=0.3, right=0.3, top=0.4, bottom=0.4, header=0.2, footer=0.2
+    )
