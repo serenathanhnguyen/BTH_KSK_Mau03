@@ -1,0 +1,41 @@
+{
+  "meta": {
+    "mo_ta": "Khoang tham chieu dung cho cot T (Tong phan tich te bao mau) va cac nhan xet CTM. Nguon ban dau lay tu phieu xet nghiem minh hoa cua tram (anh Jo cung cap 29/09/2026) - CHUA duoc bo phan xet nghiem / nguoi phu trach chuyen mon duyet chinh thuc. Phai duyet truoc khi dung cho bao cao chinh thuc.",
+    "trang_thai": "CHUA_DUYET",
+    "nguon": "Phieu xet nghiem minh hoa cua Tram Y te phuong Nhieu Loc (anh chup 29/09/2026)",
+    "phien_ban": "v1-pending",
+    "nguoi_duyet": null,
+    "ngay_duyet": null
+  },
+  "don_vi_nguon_m03_mac_dinh": {
+    "hb": "g/dL",
+    "_ghi_chu_hb": "Cot 'Huyet sac to' trong file M03 ghi nhan (g/L) o header nhung so lieu thuc te nhap vao co dang g/dL (vd 13,6 - 14,4). Tram phai tu khai bao lai don vi thuc te dang dung trong o cau hinh giao dien neu khac.",
+    "mcv": "fL",
+    "wbc": "G/L",
+    "plt": "G/L"
+  },
+  "nguong": {
+    "hb": {
+      "don_vi": "g/dL",
+      "nhom": {
+        "nam": {"duoi": 11.0, "tren": 17.5},
+        "nu_khong_thai": {"duoi": 11.0, "tren": 17.5},
+        "nu_mang_thai": null,
+        "khac": null
+      },
+      "_ghi_chu": "Phieu minh hoa chi cho MOT khoang chung cho nguoi lon, chua tach theo gioi/tuoi/thai ky. Dung chung nam & nu_khong_thai. nu_mang_thai va khac de null -> ung dung se tra ve 'Chua du nguong de nhan xet Hb' cho nhung nhom nay cho den khi duoc cau hinh rieng va duyet."
+    },
+    "mcv": {
+      "don_vi": "fL",
+      "nhom": {"mac_dinh": {"duoi": 78, "tren": 100}}
+    },
+    "wbc": {
+      "don_vi": "G/L",
+      "nhom": {"mac_dinh": {"duoi": 3.5, "tren": 10.0}}
+    },
+    "plt": {
+      "don_vi": "G/L",
+      "nhom": {"mac_dinh": {"duoi": 150, "tren": 400}}
+    }
+  }
+}

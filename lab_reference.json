@@ -1,0 +1,22 @@
+{
+  "meta": {
+    "mo_ta": "Khoang tham chieu sinh hoa mau + nuoc tieu dung de quyet dinh in dam (cao hon)/in nghieng (thap hon) va bt/x. Tong hop tu Bang_gia_tri_tham_chieu_xet_nghiem.xlsx (29/09/2026) va khung nguyen tac du an. Cac muc co 'can_xac_nhan': true la cac gia tri Jo CHUA xac nhan lai (mau thuan giua phieu moi va bang da luu truoc do) - ung dung se hien canh bao ro rang khi dung cac muc nay, khong tu y chon so.",
+    "trang_thai": "MOT_SO_MUC_CHUA_DUYET"
+  },
+  "mau": {
+    "alt":          {"duoi": 0,    "tren": 41,   "don_vi": "U/L",    "can_xac_nhan": false},
+    "ast":          {"duoi": 0,    "tren": 40,   "don_vi": "U/L",    "can_xac_nhan": false},
+    "ure":          {"duoi": 2.5,  "tren": 7.5,  "don_vi": "mmol/L", "can_xac_nhan": false},
+    "creatinin":    {"duoi": 46,   "tren": 106,  "don_vi": "umol/L", "can_xac_nhan": false},
+    "acid_uric":    {"duoi": 150,  "tren": 420,  "don_vi": "umol/L", "can_xac_nhan": false, "ghi_chu": "Truoc day tam khong dung do nghi ngo don vi; phieu 29/09/2026 cho ro don vi umol/L, da bo sung."},
+    "glucose":      {"duoi": 3.90, "tren": 6.50, "don_vi": "mmol/L", "can_xac_nhan": true, "ghi_chu": "Anh 'Sinh hoa mau' truoc day ghi 3.90-6.50; phieu benh nhan 29/09/2026 lai ghi 3.90-5.90. Dang dung tam 3.90-6.50 (gia tri da duyet gan nhat) - CAN Jo xac nhan lai truoc khi dung chinh thuc."},
+    "cholesterol":  {"duoi": 3.90, "tren": 6.20, "don_vi": "mmol/L", "can_xac_nhan": false},
+    "triglycerid":  {"duoi": 0.50, "tren": 1.70, "don_vi": "mmol/L", "can_xac_nhan": false},
+    "hdl":          {"duoi": 0.90, "tren": 2.30, "don_vi": "mmol/L", "can_xac_nhan": true, "ghi_chu": "Phieu 29/09/2026 bi mo o can tren, doc tam khong ro. Dang dung tam 0.90-2.30 (gia tri da duyet gan nhat) - CAN Jo xac nhan lai."},
+    "ldl":          {"duoi": 0,    "tren": 3.34, "don_vi": "mmol/L", "can_xac_nhan": false}
+  },
+  "nuoc_tieu": {
+    "titrong":  {"duoi": 1.000, "tren": 1.030, "don_vi": "", "can_xac_nhan": false},
+    "ph":       {"duoi": 4.8,   "tren": 8.0,   "don_vi": "", "can_xac_nhan": false}
+  }
+}
