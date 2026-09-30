@@ -17,7 +17,7 @@ import copy
 import os
 
 from openpyxl import load_workbook
-from openpyxl.styles import Font
+from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter, column_index_from_string
 
 TEMPLATE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates", "BTH_KSK_template.xlsx")
@@ -218,8 +218,47 @@ def build_report(records, enabled_columns, meta, out_path, template_path=TEMPLAT
     if meta.get("giam_doc"):
         ws[f"{date_col_letter}{name_row}"] = meta["giam_doc"]
 
-    # ---- in vua kho ngang A4: fit-to-width 1 trang, so dong tu chay xuong nhieu trang ----
     n_cols_final = TEMPLATE_LAST_COL - len(deleted_cols)
+
+    # ---- wrap text cho HỌ & TÊN va GHI CHÚ (yeu cau Jo 30/09/2026) ----
+    for cid in ("hoten", "ghichu"):
+        letter = col_letter.get(cid)
+        if not letter:
+            continue
+        for r in range(7, last_row + 1):
+            cell = ws[f"{letter}{r}"]
+            al = cell.alignment
+            cell.alignment = Alignment(
+                horizontal=al.horizontal, vertical=al.vertical, wrap_text=True,
+                text_rotation=al.text_rotation, indent=al.indent,
+            )
+
+    # ---- font size (yeu cau Jo 30/09/2026, dinh chinh lai cung ngay: pham vi
+    #   la THEO DONG chu khong phai theo cot) ----
+    # - Dong 1-6 (khoi tieu de bao cao): toan bo cot, size 13.
+    # - Dong 7 (tieu de bang) den dong benh nhan cuoi cung + 1 dong nua (chinh
+    #   la dong TONG CONG): toan bo cot, size 10.
+    # - Cac dong SAU dong TONG CONG (thong ke xep loai, ghi chu, ky ten...):
+    #   toan bo cot, size 13.
+    def _resize(cell, size):
+        f = cell.font
+        cell.font = Font(name=f.name, size=size, bold=f.bold, italic=f.italic, color=f.color)
+
+    max_row_final = max(ws.max_row, name_row)
+
+    for r in range(1, 7):
+        for c in range(1, n_cols_final + 1):
+            _resize(ws.cell(row=r, column=c), 13)
+
+    for r in range(7, tong_row + 1):
+        for c in range(1, n_cols_final + 1):
+            _resize(ws.cell(row=r, column=c), 10)
+
+    for r in range(tong_row + 1, max_row_final + 1):
+        for c in range(1, n_cols_final + 1):
+            _resize(ws.cell(row=r, column=c), 13)
+
+    # ---- in vua kho ngang A4: fit-to-width 1 trang, so dong tu chay xuong nhieu trang ----
     ws.page_setup.orientation = "landscape"
     ws.page_setup.paperSize = ws.PAPERSIZE_A4
     ws.page_setup.fitToWidth = 1
