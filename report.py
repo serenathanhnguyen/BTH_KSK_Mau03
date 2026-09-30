@@ -85,6 +85,16 @@ def build_report(records, enabled_columns, meta, out_path, template_path=TEMPLAT
     deleted_cols = sorted(column_index_from_string(TEMPLATE_COL_LETTER[cid]) for cid in disabled_ids)
     deleted_set = set(deleted_cols)
 
+    # ---- luu lai do rong cot GOC theo tung col_id TRUOC khi xoa cot ----
+    # (openpyxl KHONG tu doi cho column_dimensions khi delete_cols/insert_cols
+    # - do rong bi "dinh" theo chu cai cu, nen phai tu luu va gan lai theo
+    # chu cai MOI sau khi xoa, neu khong cot con lai se bi sai do rong)
+    orig_col_widths = {}
+    for cid, letter in TEMPLATE_COL_LETTER.items():
+        dim = ws.column_dimensions.get(letter)
+        if dim is not None and dim.width is not None:
+            orig_col_widths[cid] = dim.width
+
     # ---- unmerge tat ca, ghi lai de remerge sau khi xoa cot/dong ----
     merges_before = [(m.min_row, m.min_col, m.max_row, m.max_col) for m in ws.merged_cells.ranges]
     for m in list(ws.merged_cells.ranges):
@@ -163,6 +173,12 @@ def build_report(records, enabled_columns, meta, out_path, template_path=TEMPLAT
     for cid in enabled_ids:
         orig_idx = column_index_from_string(TEMPLATE_COL_LETTER[cid])
         col_letter[cid] = get_column_letter(remap_col(orig_idx))
+
+    # ---- gan lai do rong cot dung theo VI TRI MOI (khac phuc loi openpyxl
+    # khong tu doi cho column_dimensions khi delete_cols - xem ghi chu o tren) ----
+    for cid, new_letter in col_letter.items():
+        if cid in orig_col_widths:
+            ws.column_dimensions[new_letter].width = orig_col_widths[cid]
 
     # ---- tieu de ----
     ws["A4"] = f"BẢNG TỔNG HỢP PHÂN LOẠI SỨC KHỎE {meta.get('doi_tuong', '')}"
