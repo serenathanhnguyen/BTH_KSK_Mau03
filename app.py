@@ -27,6 +27,29 @@ LAB_ID_TO_KEY = {"alt": "alt", "ast": "ast", "ure": "ure", "cre": "creatinin",
                   "tri": "triglycerid", "hdl": "hdl", "ldl": "ldl"}
 NO_KEYWORD_LAB_IDS = ["aciduric", "cho", "tri", "hdl", "ldl"]  # chua co keyword mac dinh trong mapping.json
 
+# Cac chi so/muc KHONG co keyword co dinh trong Mau 03 chinh thuc - cho anh xa
+# thu cong qua dropdown o Muc 3. Moi dong: (key dung trong manual_map/pipeline,
+# nhan hien thi, danh sach keyword UU TIEN de TU DONG chon san trong dropdown -
+# xet theo thu tu, chon keyword DAU TIEN co mat trong file dang xu ly).
+# Neu Jo tu them cot vao file Mau 03 voi DUNG cac ten keyword nay (CHO, TRI,
+# HDL, LDL, URIC, SATQ, SAV, XQ) thi dropdown tuong ung se TU DONG chon san cot
+# do ngay khi tai file len - khong can bam chon lai moi lan (yeu cau Jo 30/09/2026).
+# "XQ"/"xq" va "sieu_am_2_tuyen_vu" duoc giu la uu tien thu 2 de KHONG lam hong
+# file Mau 03 chuan (da co san 2 cot nay voi keyword goc, hoat dong tu truoc gio).
+EXTRA_MANUAL_FIELDS = [
+    ("acid_uric", "Acid Uric", ["URIC"]),
+    ("cholesterol", "Cholesterol toàn phần (CHO)", ["CHO"]),
+    ("triglycerid", "Triglycerid (TRI)", ["TRI"]),
+    ("hdl", "HDL-Cholesterol", ["HDL"]),
+    ("ldl", "LDL-Cholesterol", ["LDL"]),
+    ("satq", "Siêu âm tổng quát (SATQ)", ["SATQ"]),
+    ("satv", "Siêu âm vú (SAV)", ["SAV", "sieu_am_2_tuyen_vu"]),
+    ("xq", "X-quang (XQ)", ["XQ", "xq"]),
+]
+# key manual_map (nhu tren) -> id cot trong mapping.json (dung cho availability_preview)
+_MANUAL_KEY_TO_COL_ID = {"acid_uric": "aciduric", "cholesterol": "cho", "triglycerid": "tri",
+                          "hdl": "hdl", "ldl": "ldl", "satq": "satq", "satv": "satv", "xq": "xq"}
+
 
 @st.cache_data(show_spinner=False)
 def _load_configs():
@@ -106,8 +129,10 @@ def main():
     sort_by_ten = st.checkbox("Sắp xếp theo cột TÊN (A→Z, theo bảng chữ cái tiếng Việt)", value=True)
 
     st.subheader("3. Ánh xạ thủ công cho các chỉ số chưa có keyword mặc định")
-    st.caption("Cholesterol/Triglycerid/HDL/LDL/Acid Uric/Siêu âm tổng quát thường KHÔNG có keyword cố định "
-               "trong Mẫu 03 — chọn đúng cột nguồn nếu file này có đo các chỉ số này. Để trống nếu không có.")
+    st.caption("Cholesterol/Triglycerid/HDL/LDL/Acid Uric/Siêu âm tổng quát/Siêu âm vú/X-quang thường KHÔNG có "
+               "keyword cố định trong Mẫu 03 — chọn đúng cột nguồn nếu file này có đo các chỉ số này, để trống "
+               "nếu không có. Mẹo: nếu bạn tự thêm cột vào file Mẫu 03 với đúng tên CHO, TRI, HDL, LDL, URIC, "
+               "SATQ, SAV, XQ thì ô tương ứng bên dưới sẽ TỰ ĐỘNG chọn sẵn cột đó, không cần bấm chọn lại mỗi lần.")
     available_keywords = [""] + sorted(rr.kw_to_cols.keys())
     manual_map = {}
     cols_ui = st.columns(3)
@@ -116,23 +141,33 @@ def main():
                   "glucose": "kskdk_shm_duongmau"}
     for key, kw in default_kw.items():
         manual_map[key] = kw if kw in rr.kw_to_cols else None
-    for i, col_id in enumerate(NO_KEYWORD_LAB_IDS):
-        key = LAB_ID_TO_KEY[col_id]
+
+    def _auto_index(candidates):
+        """Tra ve vi tri trong available_keywords cua keyword UU TIEN DAU TIEN
+        (theo thu tu candidates) thuc su co mat trong file dang xu ly, de dropdown
+        tu chon san - hoac 0 (de trong) neu khong co keyword nao khop."""
+        for kw in candidates:
+            if kw in rr.kw_to_cols:
+                return available_keywords.index(kw)
+        return 0
+
+    for i, (key, label, candidates) in enumerate(EXTRA_MANUAL_FIELDS):
         with cols_ui[i % 3]:
-            choice = st.selectbox(f"Cột cho '{key}'", available_keywords, key=f"map_{key}")
+            choice = st.selectbox(
+                f"Cột cho '{label}'", available_keywords,
+                index=_auto_index(candidates), key=f"map_{key}",
+            )
             manual_map[key] = choice or None
-    manual_map_satq = st.selectbox("Cột cho 'Siêu âm tổng quát' (satq)", available_keywords, key="map_satq")
 
     cfg_local = dict(cfg)
-    availability_preview = {"aciduric": bool(manual_map.get("acid_uric")),
-                            "cho": bool(manual_map.get("cholesterol")),
-                            "tri": bool(manual_map.get("triglycerid")),
-                            "hdl": bool(manual_map.get("hdl")),
-                            "ldl": bool(manual_map.get("ldl"))}
+    availability_preview = {
+        _MANUAL_KEY_TO_COL_ID[key]: bool(manual_map.get(key))
+        for key, _label, _cand in EXTRA_MANUAL_FIELDS
+    }
 
     if st.button("Xử lý dữ liệu", type="primary"):
         records = pipeline.process_all(
-            rr, {**manual_map, "satq": manual_map_satq or None}, lab_ref, cbc_ref,
+            rr, manual_map, lab_ref, cbc_ref,
             hb_source_unit=hb_unit, urine_enabled=urine_enabled,
             icd_fallback_enabled=icd_fallback, sort_by_ten=sort_by_ten,
         )
