@@ -250,6 +250,21 @@ def verbatim(raw, **kw):
     return str(raw).strip(), None
 
 
+_XQUANG_BINH_THUONG = "PHỔI SÁNG BÌNH THƯỜNG"
+
+
+def xquang_flag(raw, **kw):
+    """X-quang (cot xq): rut gon theo yeu cau Jo 30/09/2026 -
+    'PHỔI SÁNG BÌNH THƯỜNG' (khong phan biet hoa/thuong, khoang trang thua)
+    -> 'bt'; co gia tri khac -> 'x'; o trong -> giu trong (None)."""
+    if raw is None or str(raw).strip() == "":
+        return None, None
+    text = " ".join(str(raw).strip().upper().split())
+    if text == _XQUANG_BINH_THUONG:
+        return "bt", None
+    return "x", None
+
+
 # ---------------------------------------------------------------------------
 # Sap xep tieng Viet (QUY TAC QUAN TRONG 6 trong khung-mau-bang-tong-hop-suc-khoe.md)
 # ---------------------------------------------------------------------------
