@@ -119,6 +119,18 @@ def compose_huyetap(tt, ttr, **kw):
     return f"{int(a)}/{int(b)}", None
 
 
+def huyetap_cao(tt, ttr, **kw):
+    """Nguong tang huyet ap o NGUOI TRUONG THANH khi do tai co so y te (yeu
+    cau Jo 30/09/2026): tam thu >= 140 mmHg HOAC tam truong >= 90 mmHg.
+    Tra ve True/False de report.py to do o mmc Huyet ap; None neu thieu du
+    lieu (khong danh gia duoc, KHONG mac dinh la False)."""
+    a, _ = to_number(tt)
+    b, _ = to_number(ttr)
+    if a is None or b is None:
+        return None, None
+    return (a >= 140 or b >= 90), None
+
+
 # ---------------------------------------------------------------------------
 # Thi luc (muc 6 - "chon cap co tong lon nhat")
 # ---------------------------------------------------------------------------
