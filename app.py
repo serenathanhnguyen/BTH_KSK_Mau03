@@ -1,209 +1,274 @@
-# -*- coding: utf-8 -*-
-"""
-app.py — Giao dien Streamlit cho ung dung xuat Bang Tong Hop KSK.
-
-Chay thu: streamlit run app.py
-
-LUU Y BAO MAT (muc 5 khung nguyen tac):
-  File du lieu kham thuc te CHI di qua phien lam viec Streamlit nay trong bo
-  nho, KHONG duoc luu vao repo/GitHub. Khong ghi log ten/CCCD ra ngoai
-  (console, file log) o bat ky dau trong ung dung.
+"""Ứng dụng khung tổng hợp KSK M03 → mẫu BTH/MEO.
+Đổi tên file này thành app.py trên GitHub; thêm requirements.txt với:
+streamlit>=1.35,<2
+openpyxl>=3.1,<4
 """
 import io
 import json
-from collections import Counter
+import math
+from copy import copy
+from datetime import date, datetime
 
+import openpyxl
 import streamlit as st
-
-import reader
-import mapping as mapping_mod
-import pipeline
-import report as report_mod
-
-st.set_page_config(page_title="Bảng Tổng Hợp KSK", layout="wide")
-
-LAB_ID_TO_KEY = {"alt": "alt", "ast": "ast", "ure": "ure", "cre": "creatinin",
-                  "aciduric": "acid_uric", "glu": "glucose", "cho": "cholesterol",
-                  "tri": "triglycerid", "hdl": "hdl", "ldl": "ldl"}
-NO_KEYWORD_LAB_IDS = ["aciduric", "cho", "tri", "hdl", "ldl"]  # chua co keyword mac dinh trong mapping.json
+from openpyxl.utils import get_column_letter
 
 
-@st.cache_data(show_spinner=False)
-def _load_configs():
-    cfg = mapping_mod.load_mapping("mapping.json")
-    with open("lab_reference.json", "r", encoding="utf-8") as f:
-        lab_ref = json.load(f)
-    with open("cbc_reference.json", "r", encoding="utf-8") as f:
-        cbc_ref = json.load(f)
-    return cfg, lab_ref, cbc_ref
+st.set_page_config(page_title="Tổng hợp KSK", layout="wide")
+st.title("Bảng tổng hợp khám sức khỏe")
+st.caption("M03: keyword ở dòng 4, dữ liệu từ dòng 5. BTH: mã cột ở dòng 6, danh sách từ dòng 9.")
+
+# Giá trị là keyword dòng 4 của M03. None = chờ xác nhận nguồn dữ liệu.
+# Nội khoa M03 có nhiều phân hệ nên không tự gộp thành một phân loại.
+DEFAULT = {
+    "hoten": "ho_ten", "cccd": "dinh_danh_ca_nhan",
+    "ngaysinh": "ngay_sinh", "gioitinh": "gioi_tinh",
+    "chieucao": "chieucao", "cannang": "cannang",
+    "ngoai": "ngoaikhoa_phanloai", "dalieu": "dalieu_phanloai",
+    "sanphukhoa": "phukhoa_phanloai", "mat": "mat_phanloai",
+    "taimuihong": "tmh_phanloai", "ranghammat": "rhm_phanloai",
+    "alt": "kskdk_shm_alat_gpt", "ast": "kskdk_shm_asat_got",
+    "ure": "kskdk_shm_ure", "cre": "kskdk_shm_creatinin",
+    "glu": "kskdk_shm_duongmau",
+}
+SPECIAL = {"stt", "ten", "bmi", "huyetap", "matphai", "mattrai"}
+MEO_COLUMNS = ["stt", "hoten", "ten", "cccd", "ngaysinh", "gioitinh",
+               "chieucao", "cannang", "bmi", "huyetap", "matphai",
+               "mattrai", "noi", "ngoai", "dalieu", "sanphukhoa",
+               "mat", "taimuihong", "ranghammat", "xeploai",
+               "ghichu", "canhbao"]
 
 
-def main():
-    st.title("Bảng Tổng Hợp Phân Loại Sức Khỏe — từ file Mẫu 03")
-    cfg, lab_ref, cbc_ref = _load_configs()
+def display(value):
+    if value is None:
+        return ""
+    if isinstance(value, (date, datetime)):
+        return value.strftime("%d/%m/%Y")
+    return str(value).strip()
 
-    if lab_ref["meta"]["trang_thai"] != "":
-        for key, ref in lab_ref["mau"].items():
-            if ref.get("can_xac_nhan"):
-                st.warning(
-                    f"Ngưỡng tham chiếu cho **{key}** chưa được xác nhận lại "
-                    f"({ref.get('ghi_chu', '')}). Đang dùng tạm {ref['duoi']}–{ref['tren']} {ref['don_vi']}."
-                )
 
-    uploaded = st.file_uploader("Tải lên file Mẫu 03 (.xlsx)", type=["xlsx"])
-    if not uploaded:
-        st.info("Tải lên file Mẫu 03 (sheet ThongTinHanhChinh) để bắt đầu.")
-        return
+def parse_date(value):
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    value = display(value)
+    for fmt in ("%d/%m/%Y", "%d/%m/%y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(value, fmt).date()
+        except ValueError:
+            pass
+    return value  # Không đoán ngày nếu dữ liệu không đúng định dạng.
 
+
+def source_schema(ws):
+    result = {}
+    for col in range(1, ws.max_column + 1):
+        keyword = display(ws.cell(4, col).value)
+        if keyword:
+            # File M03 có keyword mat_docau_mt bị lặp; dùng cột đầu tiên.
+            result.setdefault(keyword, col)
+    return result
+
+
+def output_schema(ws):
+    result = {}
+    for col in range(1, 36):
+        keyword = display(ws.cell(6, col).value)
+        if keyword:
+            result[keyword] = col
+    if not result and ws["A7"].value == "STT" and ws["T7"].value == "Xếp loại":
+        return {key: index for index, key in enumerate(MEO_COLUMNS, 1)}
+    return result
+
+
+def source_rows(ws, schema):
+    identity = schema.get("dinh_danh_ca_nhan")
+    name = schema.get("ho_ten")
+    if not identity or not name:
+        raise ValueError("Thiếu keyword dinh_danh_ca_nhan hoặc ho_ten trong file dữ liệu.")
+    for row in ws.iter_rows(min_row=5, max_col=ws.max_column, values_only=True):
+        if display(row[name - 1]) or display(row[identity - 1]):
+            yield row
+
+
+def take(row, schema, keyword):
+    col = schema.get(keyword)
+    return row[col - 1] if col and col <= len(row) else None
+
+
+def convert(key, value):
+    if key == "cccd":
+        return display(value)  # Giữ số 0 đầu: nguồn phải lưu CCCD dạng text.
+    if key == "ngaysinh":
+        return parse_date(value)
+    if key == "gioitinh":
+        return {"1": "Nam", "2": "Nữ", "3": "Chưa xác định"}.get(display(value), display(value))
+    return value
+
+
+def calculated(key, row, schema, position, acuity):
+    if key == "stt":
+        return position
+    if key == "ten":
+        name = display(take(row, schema, "ho_ten"))
+        return name.split()[-1] if name else None
+    if key == "huyetap":
+        systolic = display(take(row, schema, "huyetaptamthu"))
+        diastolic = display(take(row, schema, "huyetaptamtruong"))
+        return f"{systolic}/{diastolic}" if systolic and diastolic else None
+    if key in ("matphai", "mattrai"):
+        suffix = "mp" if key == "matphai" else "mt"
+        return take(row, schema, f"mat_{acuity}_{suffix}")
+    if key == "bmi":
+        try:
+            height = float(take(row, schema, "chieucao"))
+            weight = float(take(row, schema, "cannang"))
+            return round(weight / ((height / 100) ** 2), 2) if height > 0 else None
+        except (TypeError, ValueError, ZeroDivisionError):
+            return None
+    return None
+
+
+def make_report(template_bytes, records, schema, mapping, active, acuity, title, subtitle):
+    wb = openpyxl.load_workbook(io.BytesIO(template_bytes))
+    ws = wb.active
+    columns = output_schema(ws)
+    is_meo = columns.get("xeploai") == 20 and not ws["A6"].value
+    end_col = max(columns.values())
+    class_col = get_column_letter(columns["xeploai"])
+    extra = max(0, len(records) - 10)
+    if extra:
+        # openpyxl không tự chuyển merged ranges khi chèn dòng.
+        original_merges = [str(r) for r in ws.merged_cells.ranges]
+        for region in original_merges:
+            ws.unmerge_cells(region)
+        ws.insert_rows(19, extra)
+        for region in original_merges:
+            bounds = openpyxl.utils.range_boundaries(region)
+            c1, r1, c2, r2 = bounds
+            if r1 >= 19:
+                r1 += extra
+                r2 += extra
+            ws.merge_cells(start_row=r1, start_column=c1, end_row=r2, end_column=c2)
+        for target_row in range(19, 19 + extra):
+            ws.row_dimensions[target_row].height = ws.row_dimensions[9].height
+            for col in range(1, end_col + 1):
+                src, dst = ws.cell(9, col), ws.cell(target_row, col)
+                dst._style = copy(src._style)
+                dst.alignment = copy(src.alignment)
+                dst.protection = copy(src.protection)
+
+    ws["A4"] = title
+    ws["A5"] = subtitle
+    # Xóa 10 dòng dữ liệu mẫu cũ và các dòng mở rộng, giữ phần ký tên.
+    for row_idx in range(9, 19 + extra):
+        for col in range(1, end_col + 1):
+            ws.cell(row_idx, col).value = None
+
+    for i, record in enumerate(records, 1):
+        row_idx = 8 + i
+        for key, col in columns.items():
+            if key not in active:
+                continue
+            value = (calculated(key, record, schema, i, acuity) if key in SPECIAL
+                     else take(record, schema, mapping.get(key)))
+            value = convert(key, value)
+            cell = ws.cell(row_idx, col)
+            cell.value = value if value != "" else None
+            if key == "cccd":
+                cell.number_format = "@"
+            elif key == "ngaysinh" and isinstance(value, date):
+                cell.number_format = "dd/mm/yyyy"
+        note_col = columns.get("ghichu")
+        if note_col:
+            note = display(ws.cell(row_idx, note_col).value)
+            if note:
+                letter = get_column_letter(note_col)
+                width = ws.column_dimensions[letter].width or 20
+                lines = max(1, math.ceil(len(note) / max(8, width - 3)))
+                minimum = ws.row_dimensions[row_idx].height or ws.row_dimensions[9].height or 18.85
+                ws.row_dimensions[row_idx].height = max(minimum, lines * 12 + 4)
+
+    first, last = 9, max(9, 8 + len(records))
+    total = 19 + extra
+    # Giữ nguyên phông chữ, đường viền, căn lề và ô gộp của mẫu.
+    ws.cell(total, 1).value = "TỔNG CỘNG"
+    for col in range(3, end_col):
+        letter = get_column_letter(col)
+        cell = ws.cell(total, col)
+        if not isinstance(cell, openpyxl.cell.cell.MergedCell):
+            cell.value = f'=COUNTA({letter}{first}:{letter}{last})' if records else 0
+    for index, report_row in enumerate(range(total + 3, total + 8), 1):
+        ws.cell(report_row, 3).value = (
+            f'=COUNTIF(${class_col}${first}:${class_col}${last},{index})' if records else 0
+        )
+    ws.cell(total + 2, 3).value = len(records)
+    ws.print_area = f"A1:{'U' if is_meo else 'AI'}{35 + extra}"
+    ws.print_title_rows = "7:8"
+    ws.page_setup.orientation = "landscape"
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 0
+    ws.freeze_panes = "G9" if is_meo else ws.freeze_panes
+    # V của mẫu MEO là cảnh báo nội bộ, phải luôn ẩn và không in.
+    if is_meo:
+        ws.column_dimensions["V"].hidden = True
+    else:
+        for key, col in columns.items():
+            ws.column_dimensions[get_column_letter(col)].hidden = key not in active
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    return buffer.getvalue()
+
+
+data_file = st.file_uploader("1. File dữ liệu M03 (.xlsx)", type="xlsx", key="data")
+template_file = st.file_uploader("2. File mẫu báo cáo BTH (.xlsx)", type="xlsx", key="template")
+if data_file and template_file:
     try:
-        rr = reader.read_m03(io.BytesIO(uploaded.getvalue()))
-    except Exception as e:
-        st.error(f"Không đọc được file: {e}")
-        return
-
-    with st.expander("Kiểm tra đầu vào (bấm để xem chi tiết)", expanded=True):
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Số dòng đã quét", rr.total_rows_scanned)
-        c2.metric("Số người hợp lệ", rr.total_valid_rows)
-        c3.metric("Dòng bỏ qua", len(rr.skipped_rows))
-        if rr.skipped_rows:
-            st.write("Lý do bỏ qua:", rr.skipped_rows)
-        if rr.duplicate_keywords:
-            st.warning(f"Keyword trùng vị trí trong file: {rr.duplicate_keywords} "
-                       f"(ứng dụng đang lấy giá trị ở vị trí đầu tiên tìm thấy).")
-        found = sorted(rr.kw_to_cols.keys())
-        st.caption(f"Đã nhận diện {len(found)} keyword ở hàng {rr.keyword_row}.")
-
-        # CCCD trung
-        cccds = [row.get("dinh_danh_ca_nhan") for row in rr.rows]
-        dup = [k for k, v in Counter([c for c in cccds if c]).items() if v > 1]
-        if dup:
-            st.warning(f"Có {len(dup)} CCCD xuất hiện nhiều lần — kiểm tra lại trước khi gộp: {dup}")
-
-    st.subheader("1. Thông tin tiêu đề báo cáo")
-    colA, colB = st.columns(2)
-    with colA:
-        don_vi_chu_quan = st.text_input("Đơn vị chủ quản", "ỦY BAN NHÂN DÂN PHƯỜNG NHIÊU LỘC")
-        tram_y_te = st.text_input("Tên trạm/cơ sở", "TRẠM Y TẾ")
-        doi_tuong = st.text_input("Đối tượng khám (điền sau 'PHÂN LOẠI SỨC KHỎE')", "CB-NV ...")
-    with colB:
-        nam = st.text_input("Năm khám", "2026")
-        nguoi_lap_bang = st.text_input("Người lập bảng", "Nguyễn Thị Ngọc Sương")
-        giam_doc = st.text_input("Tên Giám đốc (để trống nếu chưa cần)", "")
-
-    st.subheader("2. Cấu hình xử lý")
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        hb_unit = st.selectbox(
-            "Đơn vị Hb thực tế trong file này", ["g/dL", "g/L"], index=0,
-            help="Header M03 ghi (g/L) nhưng dữ liệu thực tế thường nhập dạng g/dL. "
-                 "Chọn đúng đơn vị thực tế — ứng dụng KHÔNG tự đoán theo độ lớn số liệu.",
-        )
-    with c2:
-        urine_enabled = st.checkbox("Tự đánh giá bt/x cho nước tiểu (tỉ trọng/pH)", value=True)
-    with c3:
-        icd_fallback = st.checkbox("Cho phép ghép ICD khi Ghi rõ & Kết luận đều trống", value=True)
-    sort_by_ten = st.checkbox("Sắp xếp theo cột TÊN (A→Z, theo bảng chữ cái tiếng Việt)", value=False)
-
-    st.subheader("3. Ánh xạ thủ công cho các chỉ số chưa có keyword mặc định")
-    st.caption("Cholesterol/Triglycerid/HDL/LDL/Acid Uric/Siêu âm tổng quát thường KHÔNG có keyword cố định "
-               "trong Mẫu 03 — chọn đúng cột nguồn nếu file này có đo các chỉ số này. Để trống nếu không có.")
-    available_keywords = [""] + sorted(rr.kw_to_cols.keys())
-    manual_map = {}
-    cols_ui = st.columns(3)
-    default_kw = {"alt": "kskdk_shm_alat_gpt", "ast": "kskdk_shm_asat_got",
-                  "ure": "kskdk_shm_ure", "creatinin": "kskdk_shm_creatinin"}
-    for key, kw in default_kw.items():
-        manual_map[key] = kw if kw in rr.kw_to_cols else None
-    for i, col_id in enumerate(NO_KEYWORD_LAB_IDS):
-        key = LAB_ID_TO_KEY[col_id]
-        with cols_ui[i % 3]:
-            choice = st.selectbox(f"Cột cho '{key}'", available_keywords, key=f"map_{key}")
-            manual_map[key] = choice or None
-    manual_map_satq = st.selectbox("Cột cho 'Siêu âm tổng quát' (satq)", available_keywords, key="map_satq")
-
-    cfg_local = dict(cfg)
-    availability_preview = {"aciduric": bool(manual_map.get("acid_uric")),
-                            "cho": bool(manual_map.get("cholesterol")),
-                            "tri": bool(manual_map.get("triglycerid")),
-                            "hdl": bool(manual_map.get("hdl")),
-                            "ldl": bool(manual_map.get("ldl"))}
-
-    if st.button("Xử lý dữ liệu", type="primary"):
-        records = pipeline.process_all(
-            rr, {**manual_map, "satq": manual_map_satq or None}, lab_ref, cbc_ref,
-            hb_source_unit=hb_unit, urine_enabled=urine_enabled,
-            icd_fallback_enabled=icd_fallback, sort_by_ten=sort_by_ten,
-        )
-        st.session_state["records"] = records
-        st.session_state["meta"] = dict(
-            don_vi_chu_quan=don_vi_chu_quan, tram_y_te=tram_y_te, doi_tuong=doi_tuong,
-            nam=nam, nguoi_lap_bang=nguoi_lap_bang, giam_doc=giam_doc,
-        )
-
-    if "records" not in st.session_state:
-        return
-
-    records = st.session_state["records"]
-    meta = st.session_state["meta"]
-
-    avail = pipeline.column_availability(records)
-    avail.update(availability_preview)
-    enabled_cols = mapping_mod.ordered_enabled_columns(cfg, availability=avail)
-
-    st.subheader("4. Chọn cột hiển thị trong báo cáo")
-    mode = st.radio("Chế độ cột", ["Giống mẫu BTH (tự động ẩn cột trống)", "Tự chọn cột"], index=0)
-    if mode == "Tự chọn cột":
-        all_ids = [c["id"] for c in cfg["columns"]]
-        labels = {c["id"]: c["label"].replace("\n", " ") for c in cfg["columns"]}
-        default_selected = [c["id"] for c in enabled_cols]
-        chosen = st.multiselect("Các cột sẽ xuất ra báo cáo", all_ids,
-                                default=default_selected, format_func=lambda i: labels[i])
-        enabled_cols = [mapping_mod.get_column(cfg, i) for i in chosen]
-        enabled_cols = sorted(enabled_cols, key=lambda c: c["order"])
-
-    st.subheader("5. Thống kê xếp loại")
-    dist = Counter(r.get("xeploai") for r in records)
-    st.write({f"Loại {k}" if k else "Chưa xếp loại": v for k, v in sorted(dist.items(), key=lambda x: (x[0] is None, x[0]))})
-
-    st.subheader("6. Xem trước & chỉnh sửa thủ công (Ghi chú / CTM / Cảnh báo)")
-    st.caption("Sửa trực tiếp trong bảng bên dưới nếu cần — nội dung đã sửa sẽ được dùng khi xuất Excel. "
-               "Không tự động ghi chẩn đoán bệnh vào CTM.")
-    import pandas as pd
-    preview_rows = []
-    for r in records:
-        preview_rows.append({
-            "STT": r["stt"], "Họ tên": r["hoten"], "CCCD": r["cccd"],
-            "Xếp loại": r["xeploai"], "CTM": r["ctm"], "Ghi chú": r["ghichu"],
-            "Cảnh báo": r["canhbao"],
-        })
-    df = pd.DataFrame(preview_rows)
-    edited = st.data_editor(df, use_container_width=True, num_rows="fixed", key="editor")
-
-    # ap dung chinh sua thu cong nguoc lai vao records (theo STT)
-    edited_by_stt = {row["STT"]: row for row in edited.to_dict("records")}
-    for r in records:
-        e = edited_by_stt.get(r["stt"])
-        if e:
-            if e["CTM"] != r["ctm"]:
-                r["ctm"] = e["CTM"]
-                r["canhbao"] = (r["canhbao"] + " | CTM đã chỉnh tay.").strip(" |")
-            r["ghichu"] = e["Ghi chú"]
-            r["canhbao"] = e["Cảnh báo"]
-
-    st.subheader("7. Xuất báo cáo")
-    if st.button("Tạo file Excel"):
-        out_path = "/tmp/BTH_KSK_output.xlsx"
-        report_mod.build_report(records, enabled_cols, meta, out_path)
-        with open(out_path, "rb") as f:
-            st.download_button(
-                "Tải file Bảng Tổng Hợp (.xlsx)", f,
-                file_name=f"BTH_KSK_{nam}_{doi_tuong.replace(' ', '_') or 'baocao'}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            )
-        st.success("Đã tạo file. Vui lòng người phụ trách chuyên môn rà soát cột Cảnh báo trước khi dùng chính thức, "
-                   "sau đó xóa cột Cảnh báo khi hoàn tất.")
-
-
-if __name__ == "__main__":
-    main()
+        data_book = openpyxl.load_workbook(io.BytesIO(data_file.getvalue()), read_only=True, data_only=True)
+        data_sheet = st.selectbox("Sheet dữ liệu", data_book.sheetnames,
+                                  index=data_book.sheetnames.index("ThongTinHanhChinh")
+                                  if "ThongTinHanhChinh" in data_book.sheetnames else 0)
+        data_ws = data_book[data_sheet]
+        schema = source_schema(data_ws)
+        records = list(source_rows(data_ws, schema))
+        template_book = openpyxl.load_workbook(io.BytesIO(template_file.getvalue()), read_only=True)
+        columns = output_schema(template_book.active)
+        if not columns or "hoten" not in columns:
+            raise ValueError("Không nhận diện được mẫu BTH/MEO: cần keyword dòng 6 hoặc tiêu đề MEO ở dòng 7.")
+        is_meo = columns.get("xeploai") == 20 and not template_book.active["A6"].value
+        if is_meo:
+            st.caption("Mẫu MEO: A–U là báo cáo; V là cột cảnh báo ẩn. Định dạng, độ rộng, ô gộp và ký tên lấy từ file mẫu.")
+        st.info(f"Đọc được {len(records):,} dòng có họ tên hoặc CCCD. Hãy kiểm tra dòng trống và bản ghi trùng trước khi xuất.")
+        with st.expander("3. Ánh xạ cột và chọn cột xuất", expanded=True):
+            keys = list(schema)
+            active = (list(columns) if is_meo else st.multiselect(
+                "Cột hiển thị trong báo cáo", list(columns), default=list(columns)))
+            acuity = st.selectbox("Thị lực P/T lấy từ", ["khongkinh", "cokinh", "kinhlo"],
+                                  format_func=lambda x: {"khongkinh":"Không kính", "cokinh":"Có kính", "kinhlo":"Kính lỗ"}[x])
+            mapping = {}
+            for key in columns:
+                if key in SPECIAL or key not in active:
+                    continue
+                choices = ["(Để trống)"] + keys
+                suggested = DEFAULT.get(key)
+                selection = st.selectbox(
+                    f"{get_column_letter(columns[key])} · {key}", choices,
+                    index=choices.index(suggested) if suggested in choices else 0,
+                    key=f"map_{key}",
+                )
+                mapping[key] = None if selection == "(Để trống)" else selection
+        st.caption("Xếp loại T/AH chưa có keyword tổng thể được xác nhận; chọn thủ công khi bạn xác định đúng cột. Nội khoa M gồm nhiều phân hệ nên mặc định để trống.")
+        title = st.text_input("Tên bảng", "BẢNG TỔNG HỢP PHÂN LOẠI SỨC KHỎE")
+        subtitle = st.text_input("Dòng năm / đợt khám", "KHÁM SỨC KHỎE NĂM 2026")
+        st.download_button("Tải cấu hình ánh xạ JSON", json.dumps({
+            "mapping": mapping, "active": active, "acuity": acuity
+        }, ensure_ascii=False, indent=2).encode("utf-8"), "anh_xa_bao_cao_ksk.json", "application/json")
+        if st.button("Tạo báo cáo", type="primary"):
+            result = make_report(template_file.getvalue(), records, schema, mapping, active,
+                                 acuity, title, subtitle)
+            st.download_button("Tải bảng tổng hợp KSK", result, "BTH_KSK_tong_hop.xlsx",
+                               "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    except Exception as exc:
+        st.error(f"Không tạo được báo cáo: {exc}")
