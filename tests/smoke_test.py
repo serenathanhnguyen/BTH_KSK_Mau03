@@ -44,8 +44,15 @@ def main():
     print("OK vision pair chon dung cap co du lieu")
 
     # kiem tra CTM: nguoi 2 co Hb=10.5 (<11.0 -> giam), WBC=11.2 (>10.0 -> tang)
-    assert "Hb giảm" in b["ctm"] and "tăng" in b["ctm"], b["ctm"]
-    print("OK CTM ghep dung thu tu Hb->MCV->WBC->PLT:", b["ctm"])
+    # -> ngoai tham chieu -> cot T phai rut gon thanh "x" (30/09/2026), chi tiet nam trong Canh bao
+    assert b["ctm"] == "x", b["ctm"]
+    assert "Hb giảm" in b["canhbao"] and "tăng" in b["canhbao"], b["canhbao"]
+    print("OK CTM rut gon dung 'x' khi co chi so ngoai tham chieu, chi tiet o Canh bao:", b["ctm"])
+
+    # nguoi 1 (A) co du 4 chi so CTM deu binh thuong trong sample -> phai la "bt"
+    a = [r for r in records if r["cccd"] == "000000000001"][0]
+    assert a["ctm"] == "bt", a["ctm"]
+    print("OK CTM rut gon dung 'bt' khi tat ca chi so doc duoc deu binh thuong")
 
     avail = pipeline.column_availability(records)
     enabled_cols = mapping_mod.ordered_enabled_columns(cfg, availability=avail)
