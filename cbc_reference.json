@@ -1,11 +1,11 @@
 {
   "meta": {
-    "mo_ta": "Khoang tham chieu dung cho cot T (Tong phan tich te bao mau) va cac nhan xet CTM. Nguon ban dau lay tu phieu xet nghiem minh hoa cua tram (anh Jo cung cap 29/09/2026) - CHUA duoc bo phan xet nghiem / nguoi phu trach chuyen mon duyet chinh thuc. Phai duyet truoc khi dung cho bao cao chinh thuc.",
-    "trang_thai": "CHUA_DUYET",
-    "nguon": "Phieu xet nghiem minh hoa cua Tram Y te phuong Nhieu Loc (anh chup 29/09/2026)",
-    "phien_ban": "v1-pending",
-    "nguoi_duyet": null,
-    "ngay_duyet": null
+    "mo_ta": "Khoang tham chieu dung cho cot T (Tong phan tich te bao mau) va cac nhan xet CTM. Da duoc Jo xac nhan lai 30/09/2026 bang phieu Ket Qua Xet Nghiem thuc te (BN Tran Hue An, mau LIS41199905, Tong phan tich te bao mau ngoai vi) - cac nguong khop hoan toan voi ban truoc, nay chinh thuc DUYET.",
+    "trang_thai": "DA_DUYET",
+    "nguon": "Phieu Ket Qua Xet Nghiem thuc te - Tram Y te Phuong Nhieu Loc, BN Tran Hue An, mau benh pham 5085/LIS41199905, lay mau 22/08/2026 (anh Jo gui 30/09/2026)",
+    "phien_ban": "v2-approved",
+    "nguoi_duyet": "Jo",
+    "ngay_duyet": "2026-09-30"
   },
   "don_vi_nguon_m03_mac_dinh": {
     "hb": "g/dL",
