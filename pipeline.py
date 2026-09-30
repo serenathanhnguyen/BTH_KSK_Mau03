@@ -35,6 +35,83 @@ ICD_DISEASE_MAP = _load_icd_disease_map()
 _SOBO_SUFFIXES = ("_chandoansobo_icd", "_chuandoansobo_icd")
 _XACDINH_SUFFIXES = ("_chandoanxacdinh_icd", "_chuandoanxacdinh_icd")
 
+# Bang ten benh RUT GON cho cot DANH GIA (yeu cau Jo 30/09/2026: "chỉ ghi tên
+# bệnh ngắn gọn", tham khao danh sach 50 benh man tinh thuong gap Jo gui + vai
+# muc Jo neu them ngoai danh sach - vd Sau rang, Duc thuy tinh the). Ten chinh
+# thuc trong icd_reminders.json (Thong tu 06/2026) nhieu khi qua dai/qua chi
+# tiet cho bao cao (vd I10 -> "tăng huyết áp vô căn (nguyên phát)"), nen dung
+# bang nay de UU TIEN ghi ten ngan truoc, chi roi vao ten day du cua bang ICD
+# khi ma khong khop muc nao trong bang nay. Khop theo "nhom ma" (3 ky tu dau
+# cua ma ICD, vd "I10", "E11") nam trong khoang [tu, den] (bao gom hai dau,
+# so sanh chuoi - CHI dung khi cung 1 chu cai dau, dung cho toan bo bang nay).
+SHORT_DISEASE_RANGES = [
+    ("I10", "I15", "Tăng huyết áp"),
+    ("E10", "E14", "Đái tháo đường"),
+    ("E78", "E78", "Rối loạn mỡ máu"),
+    ("I20", "I25", "Bệnh mạch vành"),
+    ("I50", "I50", "Suy tim mạn tính"),
+    ("I70", "I70", "Xơ vữa động mạch"),
+    ("I73", "I73", "Bệnh động mạch ngoại biên"),
+    ("E66", "E66", "Béo phì"),
+    ("M10", "M10", "Gút"),
+    ("J44", "J44", "Bệnh phổi tắc nghẽn mạn tính (COPD)"),
+    ("J45", "J45", "Hen phế quản"),
+    ("J32", "J32", "Viêm xoang mạn tính"),
+    ("J41", "J42", "Viêm phế quản mạn tính"),
+    ("J84", "J84", "Xơ phổi vô căn"),
+    ("G47", "G47", "Hội chứng ngưng thở khi ngủ"),
+    ("M15", "M19", "Thoái hóa khớp"),
+    ("M05", "M06", "Viêm khớp dạng thấp"),
+    ("M80", "M81", "Loãng xương"),
+    ("M51", "M51", "Thoát vị đĩa đệm mạn tính"),
+    ("M79", "M79", "Đau xơ cơ"),
+    ("M45", "M45", "Viêm cột sống dính khớp"),
+    ("K21", "K21", "Trào ngược dạ dày thực quản"),
+    ("K25", "K27", "Viêm loét dạ dày tá tràng mạn tính"),
+    ("K58", "K58", "Hội chứng ruột kích thích"),
+    ("K76", "K76", "Gan nhiễm mỡ không do rượu"),
+    ("K74", "K74", "Xơ gan"),
+    ("B18", "B18", "Viêm gan virus mạn tính"),
+    ("K50", "K52", "Viêm ruột mạn tính"),
+    ("F00", "F03", "Sa sút trí tuệ"),
+    ("G20", "G20", "Bệnh Parkinson"),
+    ("G43", "G43", "Đau đầu Migraine"),
+    ("G40", "G40", "Động kinh"),
+    ("F32", "F33", "Rối loạn trầm cảm"),
+    ("F41", "F41", "Rối loạn lo âu"),
+    ("G35", "G35", "Xơ cứng rải rác"),
+    ("I69", "I69", "Di chứng đột quỵ não"),
+    ("N18", "N18", "Bệnh thận mạn tính"),
+    ("E03", "E03", "Suy giáp"),
+    ("E05", "E05", "Cường giáp"),
+    ("N40", "N40", "Phì đại lành tính tuyến tiền liệt"),
+    ("L20", "L20", "Viêm da cơ địa"),
+    ("L40", "L40", "Vảy nến"),
+    ("M32", "M32", "Lupus ban đỏ hệ thống"),
+    ("L21", "L21", "Viêm da đầu mạn tính"),
+    ("C00", "C97", "Ung thư"),
+    ("D50", "D64", "Thiếu máu"),
+    ("H40", "H40", "Glôcôm (tăng nhãn áp)"),
+    ("H35", "H35", "Thoái hóa điểm vàng"),
+    ("G93", "G93", "Hội chứng mệt mỏi mạn tính"),
+    # Them ngoai danh sach 50 benh, theo yeu cau rieng cua Jo 30/09/2026:
+    ("K02", "K02", "Sâu răng"),
+    ("H25", "H26", "Đục thủy tinh thể"),
+]
+
+
+def _short_disease_name(code):
+    """Tra ten benh RUT GON theo SHORT_DISEASE_RANGES (uu tien hang dau khi
+    dien cot Danh gia) - None neu ma khong roi vao nhom nao trong bang."""
+    cat = code.strip().upper().split(".")[0]
+    if len(cat) < 3:
+        return None
+    letter, rest = cat[0], cat[1:3]
+    for lo, hi, short_name in SHORT_DISEASE_RANGES:
+        if letter == lo[0] == hi[0] and lo[1:] <= rest <= hi[1:]:
+            return short_name
+    return None
+
 
 def _strip_suffix(kw, suffixes):
     for suf in suffixes:
@@ -126,18 +203,20 @@ def build_danhgia(row, icd_map=None):
     dung khi Ghi ro/Ket luan trong nhu build_icd_fallback), vi chu bac si
     ghi tay o Ghi ro/Ket luan thuong qua chung chung (vd chi ghi "Răng hàm
     mặt." khong ro la sau rang hay mat rang) trong khi ma ICD phan biet
-    duoc ro rang. Quy tac (chot voi Jo 30/09/2026):
-      - Dung dung co che dang_bi/theo_doi nhu build_icd_fallback (chan doan
-        XAC DINH -> "đang bị bệnh <ten>"; SO BO -> "theo dõi bệnh <ten>").
-      - Bo hau to ", không xác định" trong ten benh cho ngan gon.
+    duoc ro rang. Quy tac (chot voi Jo 30/09/2026, dinh chinh lai cung ngay):
+      - CHI ghi TEN BENH, KHONG con tien to "đang bị"/"theo dõi" nhu ban dau
+        (vd chi ghi "Tăng huyết áp", "Đái tháo đường", "Sâu răng"...).
+      - Uu tien tra ten NGAN GON trong SHORT_DISEASE_RANGES (50 benh man tinh
+        thuong gap Jo cung cap + vai muc Jo bo sung rieng) truoc; chi khi ma
+        khong roi vao nhom nao trong bang do moi dung ten day du tra tu
+        icd_reminders.json (da bo hau to ", không xác định").
       - BO QUA hoan toan moi ma ICD thuoc CHUONG Z (Z00-Z99: "yeu to anh
         huong den tinh trang suc khoe va tiep xuc voi co so y te" trong
         ICD-10) - day la nhom ma HANH CHINH/TIEN SU/TINH TRANG SAU CAN
         THIEP, KHONG PHAI benh ly dang anh huong suc khoe, vi du: Z96.5
         (co mat implant/cau rang), Z98.x (tinh trang sau can thiep - vd
-        sinh mo cu o San phu khoa)... Ap dung CHUNG cho MOI chuyen khoa
-        (chot voi Jo 30/09/2026: "mat rang", "sinh mo" v.v. deu khong phai
-        benh ly nen khong ghi vao Danh gia), khong rieng Rang Ham Mat.
+        sinh mo cu o San phu khoa)... Ap dung CHUNG cho MOI chuyen khoa,
+        khong rieng Rang Ham Mat.
       - Giu them rieng cum "mat rang" theo ten benh (phong truong hop ma
         khong thuoc chuong Z nhung van la mat rang).
         Ma ICD KHONG khop duoc ten benh trong bang tra thi bo qua (khac
@@ -146,12 +225,15 @@ def build_danhgia(row, icd_map=None):
     if icd_map is None:
         icd_map = ICD_DISEASE_MAP
 
-    dang_bi = {}
-    theo_doi = {}
+    names = {}  # ten benh -> True, giu thu tu gap (dict insertion order)
 
     def _resolve(code):
-        if code.strip().upper().startswith("Z"):
+        code = code.strip()
+        if not code or code.upper().startswith("Z"):
             return None  # chuong Z: hanh chinh/tien su/tinh trang sau can thiep, khong phai benh ly
+        short = _short_disease_name(code)
+        if short:
+            return short
         name = T.icd_disease_name(code, icd_map)
         if not name:
             return None
@@ -165,31 +247,22 @@ def build_danhgia(row, icd_map=None):
             continue
 
         specialty = _strip_suffix(kw, _XACDINH_SUFFIXES)
-        if specialty is not None:
-            for code in str(val).split(","):
-                code = code.strip()
-                if not code:
-                    continue
-                name = _resolve(code)
-                if name:
-                    dang_bi.setdefault(name, True)
+        if specialty is None:
+            specialty = _strip_suffix(kw, _SOBO_SUFFIXES)
+        if specialty is None:
             continue
 
-        specialty = _strip_suffix(kw, _SOBO_SUFFIXES)
-        if specialty is not None:
-            for code in str(val).split(","):
-                code = code.strip()
-                if not code:
-                    continue
-                name = _resolve(code)
-                if name:
-                    theo_doi.setdefault(name, True)
+        for code in str(val).split(","):
+            name = _resolve(code)
+            if name:
+                # viet hoa chu cai dau MOI ten benh (khac voi Ghi chu: Danh gia la
+                # danh sach cac ten benh roi rac noi boi "; ", khong phai 1 cau van
+                # lien tuc - vi du Jo dua deu viet hoa dau tung ten: "Tật khúc xạ,
+                # Đái tháo đường, Tăng huyết áp, Sâu răng..." - yeu cau 30/09/2026)
+                name = name[0].upper() + name[1:] if name else name
+                names.setdefault(name, True)
 
-    # (dinh chinh 30/09/2026: bo chu "bệnh" cho gon - "đang bị <ten>" / "theo dõi <ten>",
-    # KHONG con "đang bị bệnh <ten>" / "theo dõi bệnh <ten>" nhu truoc)
-    parts = [f"đang bị {name}" for name in dang_bi]
-    parts += [f"theo dõi {name}" for name in theo_doi if name not in dang_bi]
-    return "; ".join(parts) if parts else None
+    return "; ".join(names) if names else None
 
 
 def process_row(row, index, manual_keyword_map, lab_ref, cbc_ref,
@@ -216,6 +289,8 @@ def process_row(row, index, manual_keyword_map, lab_ref, cbc_ref,
     rec["cannang"], w = T.to_number(row.get("cannang"))
     rec["bmi"], w = T.compute_bmi(row.get("chieucao"), row.get("cannang"))
     rec["huyetap"], w = T.compose_huyetap(row.get("huyetaptamthu"), row.get("huyetaptamtruong"))
+    # nguong THA nguoi truong thanh (tam thu>=140 HOAC tam truong>=90) -> to do o Excel (yeu cau Jo 30/09/2026)
+    rec["huyetap_cao"], _ = T.huyetap_cao(row.get("huyetaptamthu"), row.get("huyetaptamtruong"))
 
     # --- thi luc: 3 cap (khong kinh / kinh lo / co kinh), chon tong lon nhat ---
     pairs = [
