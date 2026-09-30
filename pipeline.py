@@ -117,12 +117,15 @@ def process_row(row, index, manual_keyword_map, lab_ref, cbc_ref,
         },
         rec["gioitinh"], cbc_ref, hb_source_unit=hb_source_unit,
     )
-    rec["ctm"] = ctm_text
+    rec["ctm"] = ctm_text  # da rut gon con "bt" / "x" / "" (30/09/2026) - chi tiet nam trong Canh bao
     rec["ctm_status"] = ctm_status
     if ctm_status == "bat_thuong":
-        canhbao_parts.append(f"CTM ngoài tham chiếu: {ctm_text}")
-    elif ctm_status == "thieu_du_lieu":
-        canhbao_parts.append("CTM: chưa đủ dữ liệu/ngưỡng để đánh giá — " + "; ".join(ctm_detail))
+        canhbao_parts.append("CTM ngoài tham chiếu: " + "; ".join(ctm_detail))
+    elif ctm_status == "bt" and ctm_detail:
+        canhbao_parts.append(
+            "CTM ghi 'bt' nhưng một số chỉ số chưa đủ dữ liệu/ngưỡng để đánh giá — "
+            + "; ".join(ctm_detail)
+        )
 
     # --- cac chi so sinh hoa mau (bold = cao hon tren, italic = thap hon duoi) ---
     lab_values = {}
@@ -158,7 +161,7 @@ def process_row(row, index, manual_keyword_map, lab_ref, cbc_ref,
     # --- sieu am / x-quang: giu nguyen van ---
     rec["satq"], _ = T.verbatim(row.get(manual_keyword_map.get("satq")) if manual_keyword_map.get("satq") else None)
     rec["satv"], _ = T.verbatim(row.get("sieu_am_2_tuyen_vu"))
-    rec["xq"], _ = T.verbatim(row.get("kskdk_chuan_doan_hinh_anh"))
+    rec["xq"], _ = T.xquang_flag(row.get("xq"))
 
     rec["canhbao"] = " | ".join(canhbao_parts)
     rec["warnings"] = warnings
