@@ -57,6 +57,9 @@ def _record_font_flags(rec, col_id):
     if col_id in LAB_COL_IDS:
         info = rec["lab"][LAB_COL_IDS[col_id]]
         return info["bold"], info["italic"]
+    if col_id == "huyetap":
+        # nguong THA nguoi truong thanh: tam thu>=140 HOAC tam truong>=90 -> in dam + do (yeu cau Jo 30/09/2026)
+        return bool(rec.get("huyetap_cao")), False
     return False, False
 
 
