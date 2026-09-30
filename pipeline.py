@@ -185,8 +185,10 @@ def build_danhgia(row, icd_map=None):
                 if name:
                     theo_doi.setdefault(name, True)
 
-    parts = [f"đang bị bệnh {name}" for name in dang_bi]
-    parts += [f"theo dõi bệnh {name}" for name in theo_doi if name not in dang_bi]
+    # (dinh chinh 30/09/2026: bo chu "bệnh" cho gon - "đang bị <ten>" / "theo dõi <ten>",
+    # KHONG con "đang bị bệnh <ten>" / "theo dõi bệnh <ten>" nhu truoc)
+    parts = [f"đang bị {name}" for name in dang_bi]
+    parts += [f"theo dõi {name}" for name in theo_doi if name not in dang_bi]
     return "; ".join(parts) if parts else None
 
 
