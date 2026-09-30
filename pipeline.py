@@ -18,13 +18,15 @@ NAMED_LAB_KEYS = ["alt", "ast", "ure", "creatinin", "acid_uric", "glucose",
                   "cholesterol", "triglycerid", "hdl", "ldl"]
 
 # Ten chi so CTM rieng dung khi dua vao cot DANH GIA (khac voi LABELS trong
-# cbc_rules.py dung cho Canh bao - Jo yeu cau kieu ngan gon "WBC tăng",
-# "MCV giảm" thay vi ten day du "Bạch cầu tăng"/"MCV cao" - yeu cau Jo
-# 30/09/2026 dot 3, vi du goc: "WBC tăng, HCT tăng, MCV giảm, Tiểu cầu tăng").
+# cbc_rules.py dung cho Canh bao) - dinh chinh lai 01/10/2026 theo yeu cau
+# chinh xac cua Jo: "Hồng cầu tăng/giảm", "Bạch cầu tăng/giảm", "Tiểu cầu
+# tăng/giảm", "Kích thước hồng cầu to/nhỏ" (tu MCV). KHONG con "hb" o day -
+# Hb bat thuong (thap) gio di theo nhanh rieng "Theo dõi thiếu máu" (xem
+# ctm_thieu_mau trong process_row), KHONG ghi "Hb giảm/tăng" truc tiep nua.
 DANHGIA_CTM_LABELS = {
-    "hb": ("Hb giảm", "Hb tăng"),
-    "mcv": ("MCV giảm", "MCV tăng"),
-    "wbc": ("WBC giảm", "WBC tăng"),
+    "rbc": ("Hồng cầu giảm", "Hồng cầu tăng"),
+    "mcv": ("Kích thước hồng cầu nhỏ", "Kích thước hồng cầu to"),
+    "wbc": ("Bạch cầu giảm", "Bạch cầu tăng"),
     "plt": ("Tiểu cầu giảm", "Tiểu cầu tăng"),
 }
 
@@ -355,10 +357,11 @@ def process_row(row, index, manual_keyword_map, lab_ref, cbc_ref,
             f"Xếp loại tự tính = max(tất cả *_phanloai) = {rec['xeploai']} — kiểm tra lại."
         )
 
-    # --- CTM (Hb/MCV/WBC/PLT) ---
-    ctm_text, ctm_status, ctm_detail, ctm_abnormal_map = cbc_rules.evaluate_ctm(
+    # --- CTM (Hb/Hong cau/MCV/Bach cau/Tieu cau) ---
+    ctm_text, ctm_status, ctm_detail, ctm_abnormal_map, ctm_thieu_mau = cbc_rules.evaluate_ctm(
         {
             "hb": row.get("kskdk_xnm_huyetsacto"),
+            "rbc": row.get("kskdk_xnm_slhc"),
             "mcv": row.get("kskdk_xnm_mcv"),
             "wbc": row.get("kskdk_xnm_slbc"),
             "plt": row.get("kskdk_xnm_sltc"),
@@ -423,8 +426,14 @@ def process_row(row, index, manual_keyword_map, lab_ref, cbc_ref,
     # dua vao cot DANH GIA (yeu cau Jo 30/09/2026 dot 3) ---
     extra_findings = []
     for chiso, status in ctm_abnormal_map.items():
-        lo_label, hi_label = DANHGIA_CTM_LABELS[chiso]
+        labels = DANHGIA_CTM_LABELS.get(chiso)
+        if labels is None:
+            continue  # "hb" khong con ghi truc tiep - di theo nhanh Theo doi thieu mau rieng ben duoi
+        lo_label, hi_label = labels
         extra_findings.append(hi_label if status == "cao" else lo_label)
+    if ctm_thieu_mau:
+        # Hb thap hon nguong rieng theo gioi tinh (g/L) - yeu cau Jo 01/10/2026
+        extra_findings.append("Theo dõi thiếu máu")
     if urine_enabled:
         extra_findings += T.urine_positive_findings(row)
     for raw_val, prefix in ((xq_raw, "XQ"), (satq_raw, "SATQ"), (satv_raw, "SATV")):
