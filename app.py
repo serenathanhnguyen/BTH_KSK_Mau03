@@ -44,7 +44,7 @@ EXTRA_MANUAL_FIELDS = [
     ("ldl", "LDL-Cholesterol", ["LDL"]),
     ("satq", "Siêu âm tổng quát (SATQ)", ["SATQ"]),
     ("satv", "Siêu âm vú (SAV)", ["SAV", "sieu_am_2_tuyen_vu"]),
-    ("xq", "X-quang (XQ)", ["XQ", "xq"]),
+    ("xq", "X-quang (XQ)", ["XQ", "kskdk_chuan_doan_hinh_anh"]),
 ]
 
 
