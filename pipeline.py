@@ -17,6 +17,17 @@ PHANLOAI_SUFFIX = "_phanloai"
 NAMED_LAB_KEYS = ["alt", "ast", "ure", "creatinin", "acid_uric", "glucose",
                   "cholesterol", "triglycerid", "hdl", "ldl"]
 
+# Ten chi so CTM rieng dung khi dua vao cot DANH GIA (khac voi LABELS trong
+# cbc_rules.py dung cho Canh bao - Jo yeu cau kieu ngan gon "WBC tăng",
+# "MCV giảm" thay vi ten day du "Bạch cầu tăng"/"MCV cao" - yeu cau Jo
+# 30/09/2026 dot 3, vi du goc: "WBC tăng, HCT tăng, MCV giảm, Tiểu cầu tăng").
+DANHGIA_CTM_LABELS = {
+    "hb": ("Hb giảm", "Hb tăng"),
+    "mcv": ("MCV giảm", "MCV tăng"),
+    "wbc": ("WBC giảm", "WBC tăng"),
+    "plt": ("Tiểu cầu giảm", "Tiểu cầu tăng"),
+}
+
 # Bang tra ma ICD-10 -> ten benh (Thong tu 06/2026/TT-BYT, Jo cung cap
 # 30/09/2026) - nap 1 lan luc import module, dung cho build_icd_fallback().
 _ICD_MAP_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icd_reminders.json")
@@ -197,7 +208,7 @@ def build_icd_fallback(row, icd_map=None):
     return "; ".join(parts) if parts else None
 
 
-def build_danhgia(row, icd_map=None):
+def build_danhgia(row, icd_map=None, huyetap_cao=False, extra_findings=None):
     """Cot DANH GIA (them 30/09/2026) - PHIEN BAN NGAN GON cua Ghi chu, LUON
     tao truc tiep tu cac cot ma ICD cua TUNG chuyen khoa (khong phai chi
     dung khi Ghi ro/Ket luan trong nhu build_icd_fallback), vi chu bac si
@@ -221,7 +232,17 @@ def build_danhgia(row, icd_map=None):
         khong thuoc chuong Z nhung van la mat rang).
         Ma ICD KHONG khop duoc ten benh trong bang tra thi bo qua (khac
         voi build_icd_fallback - o day khong giu ma tho, chi ghi ten benh
-        ngan gon)."""
+        ngan gon).
+      - huyetap_cao=True (huyet ap do tai cho vuot nguong 140/90, yeu cau
+        Jo 30/09/2026 - dot 2 cung ngay): LUON them "Tăng huyết áp" vao
+        Danh gia CHO DU khong co ma ICD I10 nao duoc bac si ghi trong file,
+        vi chinh chi so do duoc la can cu de danh gia, khong phu thuoc bac
+        si co ghi ma hay khong.
+      - extra_findings (yeu cau Jo 30/09/2026 dot 3): danh sach chuoi da
+        duoc pipeline.process_row() chuan bi san (CTM/nuoc tieu/sieu am/
+        X-quang bat thuong tu cac chi so/ket qua CAN LAM SANG, KHONG phai
+        tu ma ICD) - them truc tiep vao cuoi Danh gia, giu nguyen thu tu,
+        bo trung neu trung ten voi muc da co."""
     if icd_map is None:
         icd_map = ICD_DISEASE_MAP
 
@@ -238,7 +259,10 @@ def build_danhgia(row, icd_map=None):
         if not name:
             return None
         name = T.strip_khong_xac_dinh(name)
-        if "mất răng" in name.lower():
+        low = name.lower()
+        # loai tru cac "tinh trang" khong phai benh ly can theo doi/canh bao,
+        # theo yeu cau Jo (mat rang 30/09; man kinh/suy buong trung sau do)
+        if "mất răng" in low or "mãn kinh và/hoặc suy buồng trứng" in low:
             return None
         return name or None
 
@@ -261,6 +285,17 @@ def build_danhgia(row, icd_map=None):
                 # Đái tháo đường, Tăng huyết áp, Sâu răng..." - yeu cau 30/09/2026)
                 name = name[0].upper() + name[1:] if name else name
                 names.setdefault(name, True)
+
+    if huyetap_cao:
+        # huyet ap vuot nguong tai cho do -> ghi nhan "Tang huyet ap" du khong
+        # co ma ICD I10 duoc bac si ghi (yeu cau Jo 30/09/2026 dot 2)
+        names.setdefault("Tăng huyết áp", True)
+
+    if extra_findings:
+        # CTM/nuoc tieu/sieu am/X-quang bat thuong (yeu cau Jo 30/09/2026 dot 3)
+        for item in extra_findings:
+            if item:
+                names.setdefault(item, True)
 
     return "; ".join(names) if names else None
 
@@ -320,19 +355,8 @@ def process_row(row, index, manual_keyword_map, lab_ref, cbc_ref,
             f"Xếp loại tự tính = max(tất cả *_phanloai) = {rec['xeploai']} — kiểm tra lại."
         )
 
-    # --- danh gia (ten benh ngan gon tu ma ICD - luon tao, doc lap voi Ghi chu) ---
-    rec["danhgia"] = build_danhgia(row)
-    rec["danhgia"], _ = T.sentence_case(rec["danhgia"])  # chi hoa chu dau dong (yeu cau Jo 30/09/2026)
-
-    # --- ghi chu (uu tien Ghi ro > Ket luan > ICD) ---
-    icd_fallback = build_icd_fallback(row) if icd_fallback_enabled else None
-    rec["ghichu"], w = T.ghichu_priority(row.get("de_nghi"), row.get("danh_muc_de_nghi"), icd_fallback)
-    rec["ghichu"], _ = T.sentence_case(rec["ghichu"])  # chi hoa chu dau dong, khong con Proper Case (dinh chinh 30/09/2026)
-    if w:
-        canhbao_parts.append(w)
-
     # --- CTM (Hb/MCV/WBC/PLT) ---
-    ctm_text, ctm_status, ctm_detail = cbc_rules.evaluate_ctm(
+    ctm_text, ctm_status, ctm_detail, ctm_abnormal_map = cbc_rules.evaluate_ctm(
         {
             "hb": row.get("kskdk_xnm_huyetsacto"),
             "mcv": row.get("kskdk_xnm_mcv"),
@@ -385,11 +409,44 @@ def process_row(row, index, manual_keyword_map, lab_ref, cbc_ref,
     # --- sieu am / x-quang: giu nguyen van (co the anh xa thu cong o Muc 3 -
     # neu khong chon gi thi dung lai keyword goc cua Mau 03 chuan, khong doi
     # hanh vi cu - yeu cau Jo 30/09/2026) ---
-    rec["satq"], _ = T.verbatim(row.get(manual_keyword_map.get("satq")) if manual_keyword_map.get("satq") else None)
+    satq_kw = manual_keyword_map.get("satq")
+    satq_raw = row.get(satq_kw) if satq_kw else None
+    rec["satq"], _ = T.verbatim(satq_raw)
     satv_kw = manual_keyword_map.get("satv") or "sieu_am_2_tuyen_vu"
-    rec["satv"], _ = T.verbatim(row.get(satv_kw))
+    satv_raw = row.get(satv_kw)
+    rec["satv"], _ = T.verbatim(satv_raw)
     xq_kw = manual_keyword_map.get("xq") or "kskdk_chuan_doan_hinh_anh"
-    rec["xq"], _ = T.xquang_flag(row.get(xq_kw))
+    xq_raw = row.get(xq_kw)
+    rec["xq"], _ = T.xquang_flag(xq_raw)
+
+    # --- gom cac ket qua CAN LAM SANG bat thuong (KHONG phai tu ma ICD) de
+    # dua vao cot DANH GIA (yeu cau Jo 30/09/2026 dot 3) ---
+    extra_findings = []
+    for chiso, status in ctm_abnormal_map.items():
+        lo_label, hi_label = DANHGIA_CTM_LABELS[chiso]
+        extra_findings.append(hi_label if status == "cao" else lo_label)
+    if urine_enabled:
+        extra_findings += T.urine_positive_findings(row)
+    for raw_val, prefix in ((xq_raw, "XQ"), (satq_raw, "SATQ"), (satv_raw, "SATV")):
+        flag, _ = T.finding_flag(raw_val)
+        if flag == "x":
+            text = T.format_finding_for_danhgia(raw_val, prefix)
+            if text:
+                extra_findings.append(text)
+
+    # --- danh gia (ten benh ngan gon tu ma ICD + cac ket qua CLS bat thuong
+    # o tren - luon tao, doc lap voi Ghi chu) ---
+    # huyetap_cao da tinh o tren -> truyen vao de tu dong them "Tang huyet ap"
+    # ngay ca khi khong co ma ICD I10 (yeu cau Jo 30/09/2026 dot 2)
+    rec["danhgia"] = build_danhgia(row, huyetap_cao=rec["huyetap_cao"], extra_findings=extra_findings)
+    rec["danhgia"], _ = T.sentence_case(rec["danhgia"])  # chi hoa chu dau dong (yeu cau Jo 30/09/2026)
+
+    # --- ghi chu (uu tien Ghi ro > Ket luan > ICD) ---
+    icd_fallback = build_icd_fallback(row) if icd_fallback_enabled else None
+    rec["ghichu"], w = T.ghichu_priority(row.get("de_nghi"), row.get("danh_muc_de_nghi"), icd_fallback)
+    rec["ghichu"], _ = T.sentence_case(rec["ghichu"])  # chi hoa chu dau dong, khong con Proper Case (dinh chinh 30/09/2026)
+    if w:
+        canhbao_parts.append(w)
 
     rec["canhbao"] = " | ".join(canhbao_parts)
     rec["warnings"] = warnings
