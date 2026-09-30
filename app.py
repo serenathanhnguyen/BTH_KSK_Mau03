@@ -112,8 +112,7 @@ def main():
     manual_map = {}
     cols_ui = st.columns(3)
     default_kw = {"alt": "kskdk_shm_alat_gpt", "ast": "kskdk_shm_asat_got",
-                  "ure": "kskdk_shm_ure", "creatinin": "kskdk_shm_creatinin",
-                  "glucose": "kskdk_shm_duongmau"}
+                  "ure": "kskdk_shm_ure", "creatinin": "kskdk_shm_creatinin"}
     for key, kw in default_kw.items():
         manual_map[key] = kw if kw in rr.kw_to_cols else None
     for i, col_id in enumerate(NO_KEYWORD_LAB_IDS):

@@ -1,45 +1,29 @@
 # -*- coding: utf-8 -*-
 """
 report.py
-Dung file Excel Bang Tong Hop bang cach NHAN BAN template chuan
-(templates/BTH_KSK_template.xlsx) va CHINH SUA truc tiep tren do — dung
-CHINH XAC phuong phap da kiem chung nhieu lan trong du an nay (VISSAN,
-Hai Thinh, Thai Thinh...): unmerge -> xoa cot khong co du lieu -> chen/xoa
-dong cho khop so nguoi -> remerge -> dien du lieu + reset font -> sua lai
-cong thuc COUNTA/COUNTIF. KHONG dung Workbook rong dung tu code (ban truoc
-da lam vay va lam sai lech cach anh xa/bo cuc cot ma Jo da quen dung) —
-xem README/CHANGELOG de biet ly do doi lai cach lam nay ngay 30/09/2026.
-
-mapping.py/pipeline.py/transforms.py KHONG doi — file nay chi lo phan
-"ve" ket qua da xu ly ra Excel.
+Dung file Excel Bang Tong Hop tu danh sach ban ghi da xu ly (pipeline.py) va
+cau hinh cot dang bat (mapping.py). Xay dung workbook TRUC TIEP bang
+openpyxl (khong sua-xoa-cong-tru cot tren file mau goc) de dam bao dung khi
+so cot bat/tat thay doi giua cac lan chay - day la nguyen nhan chinh gay loi
+merge-cell/cong-thuc-lech khi thao tac truc tiep tren mau co san (da gap
+nhieu lan trong qua trinh lam thu cong truoc khi co ung dung nay).
 """
-import copy
-import os
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+from openpyxl.utils import get_column_letter
 
-from openpyxl import load_workbook
-from openpyxl.styles import Font
-from openpyxl.utils import get_column_letter, column_index_from_string
+THIN = Side(style="thin", color="000000")
+BORDER = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
+HEADER_FILL = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="solid")
 
-TEMPLATE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates", "BTH_KSK_template.xlsx")
-
-# Vi tri CO DINH cua tung cot trong template goc (truoc khi xoa cot khong dung)
-TEMPLATE_COL_LETTER = {
-    "stt": "A", "hoten": "B", "ten": "C", "cccd": "D", "ngaysinh": "E", "gioitinh": "F",
-    "chieucao": "G", "cannang": "H", "bmi": "I", "huyetap": "J",
-    "matphai": "K", "mattrai": "L",
-    "noi": "M", "ngoai": "N", "dalieu": "O", "sanphukhoa": "P", "mat": "Q", "tmh": "R", "rhm": "S",
-    "ctm": "T", "alt": "U", "ast": "V", "ure": "W", "cre": "X", "aciduric": "Y", "glu": "Z",
-    "cho": "AA", "tri": "AB", "hdl": "AC", "ldl": "AD", "nt": "AE", "satq": "AF", "satv": "AG", "xq": "AH",
-    "xeploai": "AI", "ghichu": "AJ", "canhbao": "AK",
-}
-TEMPLATE_LAST_COL = column_index_from_string("AK")  # 37
-TEMPLATE_DATA_ROWS = list(range(9, 19))     # 10 dong mau san co
-TEMPLATE_TOTAL_ROW = 19
-TEMPLATE_STAT_START = 21                    # "Tổng số:" ; Loại 1..5 = 22..26
-TEMPLATE_NOTE_ROW = 27
-TEMPLATE_DATE_ROW = 28
-TEMPLATE_SIGN_ROW = 29
-TEMPLATE_NAME_ROW = 35
+GROUPED_PREFIX_COLUMNS = {"matphai": "MẮT 10/10", "mattrai": "MẮT 10/10",
+                          "noi": "KHÁM LÂM SÀNG\n(Phân loại từ 1 đến 5)",
+                          "ngoai": "KHÁM LÂM SÀNG\n(Phân loại từ 1 đến 5)",
+                          "dalieu": "KHÁM LÂM SÀNG\n(Phân loại từ 1 đến 5)",
+                          "sanphukhoa": "KHÁM LÂM SÀNG\n(Phân loại từ 1 đến 5)",
+                          "mat": "KHÁM LÂM SÀNG\n(Phân loại từ 1 đến 5)",
+                          "tmh": "KHÁM LÂM SÀNG\n(Phân loại từ 1 đến 5)",
+                          "rhm": "KHÁM LÂM SÀNG\n(Phân loại từ 1 đến 5)"}
 
 LAB_COL_IDS = {"alt": "alt", "ast": "ast", "ure": "ure", "cre": "creatinin",
                "aciduric": "acid_uric", "glu": "glucose", "cho": "cholesterol",
@@ -49,8 +33,6 @@ LAB_COL_IDS = {"alt": "alt", "ast": "ast", "ure": "ure", "cre": "creatinin",
 def _record_value(rec, col_id):
     if col_id in LAB_COL_IDS:
         return rec["lab"][LAB_COL_IDS[col_id]]["value"]
-    if col_id == "stt":
-        return rec["stt"]
     return rec.get(col_id)
 
 
@@ -61,169 +43,162 @@ def _record_font_flags(rec, col_id):
     return False, False
 
 
-def _nearest_surviving(col_idx, deleted_set, direction):
-    c = col_idx
-    while c in deleted_set:
-        c += direction
-    return c
-
-
-def build_report(records, enabled_columns, meta, out_path, template_path=TEMPLATE_PATH):
+def build_report(records, enabled_columns, meta, out_path):
     """
-    records: list tu pipeline.process_all() — KHONG doi so voi truoc.
-    enabled_columns: list cac dict cot (tu mapping.ordered_enabled_columns) —
-                      dung DE QUYET DINH cot nao GIU LAI trong template, khong
-                      dung de tu dung cot moi (template da co san du 37 cot).
-    meta: dict {don_vi_chu_quan, tram_y_te, doi_tuong, nam, nguoi_lap_bang, giam_doc}
+    records: list tu pipeline.process_all()
+    enabled_columns: list cac dict cot (tu mapping.ordered_enabled_columns),
+                      DA loai 'stt' va 'canhbao'/'ghichu' o cuoi neu can - ham
+                      nay tu dong dat dung vi tri chuan (dau: STT..; cuoi:
+                      Xếp loại, Ghi chú, Cảnh báo).
+    meta: dict {don_vi, tram_y_te, tieu_de, nam, nguoi_lap_bang, giam_doc}
     """
-    wb = load_workbook(template_path)
+    wb = Workbook()
     ws = wb.active
+    ws.title = "Sheet1"
 
-    enabled_ids = {c["id"] for c in enabled_columns}
-    all_ids = list(TEMPLATE_COL_LETTER.keys())
-    disabled_ids = [cid for cid in all_ids if cid not in enabled_ids]
-    deleted_cols = sorted(column_index_from_string(TEMPLATE_COL_LETTER[cid]) for cid in disabled_ids)
-    deleted_set = set(deleted_cols)
-
-    # ---- unmerge tat ca, ghi lai de remerge sau khi xoa cot/dong ----
-    merges_before = [(m.min_row, m.min_col, m.max_row, m.max_col) for m in ws.merged_cells.ranges]
-    for m in list(ws.merged_cells.ranges):
-        ws.unmerge_cells(str(m))
-
-    # ---- xoa cot khong dung (tu phai sang trai de khong lech chi so) ----
-    for col_idx in sorted(deleted_cols, reverse=True):
-        ws.delete_cols(col_idx, 1)
-
-    def remap_col(c):
-        return c - sum(1 for d in deleted_cols if d < c)
-
-    # ---- chen/xoa dong cho khop so nguoi (QUY TAC 5) ----
-    n_people = len(records)
-    n_template_rows = len(TEMPLATE_DATA_ROWS)
-    row_delta = n_people - n_template_rows
-    last_sample_row = TEMPLATE_DATA_ROWS[-1]
-    if row_delta > 0:
-        ws.insert_rows(last_sample_row + 1, row_delta)
-        # sao chep style dong mau cuoi cung sang cac dong moi chen
-        n_cols_after_delete = TEMPLATE_LAST_COL - len(deleted_cols)
-        for i in range(row_delta):
-            new_r = last_sample_row + 1 + i
-            for c in range(1, n_cols_after_delete + 1):
-                src = ws.cell(row=last_sample_row, column=c)
-                dst = ws.cell(row=new_r, column=c)
-                dst.font = copy.copy(src.font)
-                dst.border = copy.copy(src.border)
-                dst.fill = copy.copy(src.fill)
-                dst.alignment = copy.copy(src.alignment)
-                dst.number_format = src.number_format
-            ws.row_dimensions[new_r].height = ws.row_dimensions[last_sample_row].height
-    elif row_delta < 0:
-        ws.delete_rows(last_sample_row + row_delta + 1, -row_delta)
-
-    def remap_row(r):
-        if r > last_sample_row:
-            return r + row_delta
-        return r
-
-    # ---- remerge (bo qua merge nam trong pham vi cot da xoa hoan toan) ----
-    def nearest_start(c):
-        while c in deleted_set:
-            c += 1
-        return c
-
-    def nearest_end(c):
-        while c in deleted_set:
-            c -= 1
-        return c
-
-    for (r1, c1, r2, c2) in merges_before:
-        # merge trong vung du lieu mau (row 9..18) khong can remerge (moi o rieng le)
-        if TEMPLATE_DATA_ROWS[0] <= r1 <= TEMPLATE_DATA_ROWS[-1]:
-            continue
-        nr1, nr2 = remap_row(r1), remap_row(r2)
-        sc1, sc2 = nearest_start(c1), nearest_end(c2)
-        if sc1 > sc2:
-            continue
-        nc1, nc2 = remap_col(sc1), remap_col(sc2)
-        if nc1 > nc2 or nr1 > nr2:
-            continue
-        ws.merge_cells(start_row=nr1, start_column=nc1, end_row=nr2, end_column=nc2)
-
-    # ---- vi tri cac dong/cot sau khi xoa/chen ----
-    DATA_START = 9
-    last_row = DATA_START + n_people - 1
-    tong_row = remap_row(TEMPLATE_TOTAL_ROW)
-    stat_start = remap_row(TEMPLATE_STAT_START)
-    note_row = remap_row(TEMPLATE_NOTE_ROW)
-    date_row = remap_row(TEMPLATE_DATE_ROW)
-    sign_row = remap_row(TEMPLATE_SIGN_ROW)
-    name_row = remap_row(TEMPLATE_NAME_ROW)
-
-    col_letter = {}  # col_id -> cot MOI (sau xoa) — chi cho cac cot con giu
-    for cid in enabled_ids:
-        orig_idx = column_index_from_string(TEMPLATE_COL_LETTER[cid])
-        col_letter[cid] = get_column_letter(remap_col(orig_idx))
+    # dam bao thu tu chuan: cac cot 'giua' truoc, xeploai/ghichu/canhbao luon cuoi cung
+    middle = [c for c in enabled_columns if c["id"] not in ("xeploai", "ghichu", "canhbao")]
+    tail_order = ["xeploai", "ghichu", "canhbao"]
+    tail = [c for tid in tail_order for c in enabled_columns if c["id"] == tid]
+    ordered = middle + tail
+    n_cols = len(ordered)
 
     # ---- tieu de ----
-    ws["A4"] = f"BẢNG TỔNG HỢP PHÂN LOẠI SỨC KHỎE {meta.get('doi_tuong', '')}"
-    ws["A5"] = f"KHÁM SỨC KHỎE ĐỊNH KỲ NĂM {meta.get('nam', '')}"
-    if meta.get("don_vi_chu_quan"):
-        ws["A1"] = meta["don_vi_chu_quan"]
-    if meta.get("tram_y_te"):
-        ws["A2"] = meta["tram_y_te"]
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=max(7, n_cols // 2))
+    ws.cell(row=1, column=1, value=meta.get("don_vi_chu_quan", "ỦY BAN NHÂN DÂN PHƯỜNG NHIÊU LỘC")).font = Font(bold=True)
+    ws.merge_cells(start_row=1, start_column=n_cols - 6 if n_cols > 13 else max(8, n_cols // 2 + 1),
+                   end_row=1, end_column=n_cols)
+    ws.cell(row=1, column=(n_cols - 6 if n_cols > 13 else max(8, n_cols // 2 + 1)),
+            value="CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM").font = Font(bold=True)
+
+    ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=max(7, n_cols // 2))
+    ws.cell(row=2, column=1, value=meta.get("tram_y_te", "TRẠM Y TẾ")).font = Font(bold=True)
+    ws.merge_cells(start_row=2, start_column=n_cols - 6 if n_cols > 13 else max(8, n_cols // 2 + 1),
+                   end_row=2, end_column=n_cols)
+    ws.cell(row=2, column=(n_cols - 6 if n_cols > 13 else max(8, n_cols // 2 + 1)),
+            value="Độc lập - Tự do - Hạnh phúc").font = Font(italic=True)
+
+    ws.merge_cells(start_row=4, start_column=1, end_row=4, end_column=n_cols)
+    c = ws.cell(row=4, column=1, value=f"BẢNG TỔNG HỢP PHÂN LOẠI SỨC KHỎE {meta.get('doi_tuong', '')}")
+    c.font = Font(bold=True, size=13)
+    c.alignment = Alignment(horizontal="center")
+
+    ws.merge_cells(start_row=5, start_column=1, end_row=5, end_column=n_cols)
+    c = ws.cell(row=5, column=1, value=f"KHÁM SỨC KHỎE ĐỊNH KỲ NĂM {meta.get('nam', '')}")
+    c.font = Font(bold=True, size=12)
+    c.alignment = Alignment(horizontal="center")
+
+    # ---- header hang 7-8 ----
+    HEADER_ROW, SUBHEADER_ROW = 7, 8
+    col_idx = 1
+    group_spans = {}  # group_label -> (start_col, end_col)
+    for col in ordered:
+        label = col["label"]
+        group = GROUPED_PREFIX_COLUMNS.get(col["id"]) or (
+            "CẬN LÂM SÀNG" if col.get("group") == "CẬN LÂM SÀNG" else None
+        )
+        if group:
+            group_spans.setdefault(group, [col_idx, col_idx])
+            group_spans[group][1] = col_idx
+            ws.cell(row=SUBHEADER_ROW, column=col_idx, value=label)
+        else:
+            ws.merge_cells(start_row=HEADER_ROW, start_column=col_idx, end_row=SUBHEADER_ROW, end_column=col_idx)
+            ws.cell(row=HEADER_ROW, column=col_idx, value=label)
+        col_idx += 1
+    for group, (c1, c2) in group_spans.items():
+        ws.merge_cells(start_row=HEADER_ROW, start_column=c1, end_row=HEADER_ROW, end_column=c2)
+        ws.cell(row=HEADER_ROW, column=c1, value=group)
+
+    for r in (HEADER_ROW, SUBHEADER_ROW):
+        for c in range(1, n_cols + 1):
+            cell = ws.cell(row=r, column=c)
+            cell.font = Font(bold=True)
+            cell.fill = HEADER_FILL
+            cell.border = BORDER
+            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
     # ---- du lieu ----
+    DATA_START = 9
     for i, rec in enumerate(records):
         r = DATA_START + i
-        for cid, letter in col_letter.items():
-            if cid == "stt":
+        for j, col in enumerate(ordered, start=1):
+            if col["id"] == "stt":
                 val = i + 1
-            elif cid == "bmi":
-                val = f"={col_letter['cannang']}{r}/({col_letter['chieucao']}{r}*{col_letter['chieucao']}{r})*10000"
+            elif col["id"] == "bmi":
+                val = rec.get("bmi")
             else:
-                val = _record_value(rec, cid)
-            cell = ws[f"{letter}{r}"]
-            cell.value = val
-            bold, italic = _record_font_flags(rec, cid)
-            f = cell.font
-            cell.font = Font(name=f.name, size=f.size, bold=bold, italic=italic, color=f.color)
+                val = _record_value(rec, col["id"])
+            cell = ws.cell(row=r, column=j, value=val)
+            cell.border = BORDER
+            bold, italic = _record_font_flags(rec, col["id"])
+            if bold or italic:
+                cell.font = Font(bold=bold, italic=italic)
+            if col["id"] in ("ghichu", "canhbao"):
+                cell.alignment = Alignment(wrap_text=True, vertical="top")
 
-    # ---- TONG CONG: COUNTA tu F den Xep loai (khong tinh Ghi chu/Canh bao) ----
-    ws[f"A{tong_row}"] = "TỔNG CỘNG"
-    skip_ids = {"stt", "hoten", "ten", "cccd", "ngaysinh", "ghichu", "canhbao"}
-    for cid, letter in sorted(col_letter.items(), key=lambda kv: column_index_from_string(kv[1])):
-        if cid in skip_ids:
+    last_row = DATA_START + len(records) - 1
+
+    # ---- TONG CONG ----
+    tong_row = last_row + 1
+    ws.cell(row=tong_row, column=1, value="TỔNG CỘNG").font = Font(bold=True)
+    xeploai_col_letter = None
+    for j, col in enumerate(ordered, start=1):
+        if col["id"] in ("ghichu", "canhbao"):
             continue
-        ws[f"{letter}{tong_row}"] = f"=COUNTA({letter}{DATA_START}:{letter}{last_row})"
+        if col["id"] == "xeploai":
+            xeploai_col_letter = get_column_letter(j)
+        if j == 1:
+            continue
+        letter = get_column_letter(j)
+        cell = ws.cell(row=tong_row, column=j, value=f"=COUNTA({letter}{DATA_START}:{letter}{last_row})")
+        cell.font = Font(bold=True)
+        cell.border = BORDER
+    ws.cell(row=tong_row, column=1).border = BORDER
 
     # ---- thong ke xep loai ----
-    ws[f"C{stat_start}"] = f"=SUM(C{stat_start + 1}:C{stat_start + 5})"
-    xl_letter = col_letter.get("xeploai")
+    stat_start = tong_row + 2
+    ws.cell(row=stat_start, column=2, value="Tổng số:")
+    ws.cell(row=stat_start, column=3, value=f"=SUM(C{stat_start + 1}:C{stat_start + 5})")
+    ws.cell(row=stat_start, column=5, value="Người")
     for k in range(1, 6):
         rr = stat_start + k
-        if xl_letter:
-            ws[f"C{rr}"] = f'=COUNTIF(${xl_letter}${DATA_START}:${xl_letter}${last_row},"{k}")'
+        ws.cell(row=rr, column=2, value=f"Loại {k}:")
+        if xeploai_col_letter:
+            ws.cell(row=rr, column=3,
+                    value=f'=COUNTIF(${xeploai_col_letter}${DATA_START}:${xeploai_col_letter}${last_row},"{k}")')
+        ws.cell(row=rr, column=5, value="Người")
 
-    ws[f"B{note_row}"] = ("Ghi chú: chỉ số cận lâm sàng in đậm = cao hơn giá trị tham chiếu; "
-                          "in nghiêng = thấp hơn giá trị tham chiếu.")
-    # ngay ky luon giu dang cham cham, KHONG dien so cu the (QUY TAC 4)
-    date_col_letter = get_column_letter(remap_col(column_index_from_string("V")))
-    ws[f"{date_col_letter}{date_row}"] = "Ngày ......... tháng ......... năm ........."
-    ws[f"B{sign_row}"] = "Người Lập Bảng"
-    ws[f"{date_col_letter}{sign_row}"] = "GIÁM ĐỐC"
-    ws[f"B{name_row}"] = meta.get("nguoi_lap_bang", "Nguyễn Thị Ngọc Sương")
+    note_row = stat_start + 6
+    ws.cell(row=note_row, column=2,
+            value="Ghi chú: chỉ số cận lâm sàng in đậm = cao hơn giá trị tham chiếu; "
+                  "in nghiêng = thấp hơn giá trị tham chiếu.")
+
+    date_row = note_row + 1
+    date_col = max(1, n_cols - 6)
+    ws.cell(row=date_row, column=date_col, value="Ngày ......... tháng ......... năm .........")
+
+    sign_row = date_row + 1
+    ws.cell(row=sign_row, column=2, value="Người Lập Bảng")
+    ws.cell(row=sign_row, column=date_col, value="GIÁM ĐỐC")
+
+    name_row = sign_row + 6
+    ws.cell(row=name_row, column=2, value=meta.get("nguoi_lap_bang", "Nguyễn Thị Ngọc Sương"))
     if meta.get("giam_doc"):
-        ws[f"{date_col_letter}{name_row}"] = meta["giam_doc"]
+        ws.cell(row=name_row, column=date_col, value=meta["giam_doc"])
 
-    # ---- in vua kho ngang A4: fit-to-width 1 trang, so dong tu chay xuong nhieu trang ----
-    n_cols_final = TEMPLATE_LAST_COL - len(deleted_cols)
+    # ---- do rong cot ----
+    for j, col in enumerate(ordered, start=1):
+        letter = get_column_letter(j)
+        if col["id"] in ("ghichu", "canhbao"):
+            ws.column_dimensions[letter].width = 32
+        elif col["id"] == "hoten":
+            ws.column_dimensions[letter].width = 22
+        else:
+            ws.column_dimensions[letter].width = 12
+
+    ws.print_title_rows = f"{HEADER_ROW}:{SUBHEADER_ROW}"
     ws.page_setup.orientation = "landscape"
-    ws.page_setup.paperSize = ws.PAPERSIZE_A4
-    ws.page_setup.fitToWidth = 1
-    ws.page_setup.fitToHeight = 0
-    ws.sheet_properties.pageSetUpPr.fitToPage = True
-    ws.print_title_rows = "7:8"
-    ws.print_area = f"A1:{get_column_letter(n_cols_final)}{name_row}"
+    ws.print_area = f"A1:{get_column_letter(n_cols)}{name_row}"
 
     wb.save(out_path)
     return out_path

@@ -78,23 +78,9 @@ bạn không đổi tên file dữ liệu thật thành trùng với các ngoạ
 | `transforms.py` | Các hàm chuẩn hoá/suy luận từng trường |
 | `cbc_rules.py` | Logic ghép câu nhận xét cột CTM |
 | `pipeline.py` | Lớp nghiệp vụ trung tâm — ghép tất cả module trên thành 1 bản ghi/người |
-| `report.py` | Nhân bản `templates/BTH_KSK_template.xlsx` rồi chỉnh sửa trực tiếp (xoá cột trống, chèn/xoá dòng, remerge, điền dữ liệu + reset in đậm/nghiêng, sửa công thức) — CÙNG một phương pháp đã dùng để dựng các bảng VISSAN/Hải Thịnh/Thái Thịnh trước đó, không dựng workbook rỗng từ đầu |
-| `templates/BTH_KSK_template.xlsx` | Bản mẫu chuẩn (đã xoá hết dữ liệu cá nhân ở 10 dòng mẫu, chỉ giữ định dạng) — đã có sẵn đủ cột Urê/Acid Uric/X-quang/Cảnh báo theo đúng thứ tự khung nguyên tắc, và đã đặt sẵn khổ A4 ngang + Fit to width |
+| `report.py` | Dựng file Excel đầu ra bằng openpyxl (không sửa trên file mẫu cũ) |
 | `sample_data/mau_03_sample_fake.xlsx` | Dữ liệu mẫu hư cấu để test |
-| `tests/smoke_test.py` | Kiểm tra nhanh toàn bộ pipeline (đã test cả trường hợp <10 và >10 người) |
-
-### Về việc in vừa khổ A4 (cập nhật 30/09/2026)
-
-Phiên bản trước đã bị dựng lại `report.py` thành một workbook hoàn toàn mới
-bằng code — việc này vô tình làm thay đổi cách bố trí/ánh xạ cột so với các
-file Jo đã quen dùng, nên không dùng được. Đã **làm lại theo đúng cách cũ**:
-`report.py` giờ chỉ thao tác trên bản sao của `templates/BTH_KSK_template.xlsx`
-(xoá cột không có dữ liệu, chèn/xoá dòng, điền số liệu, sửa công thức) — cách
-ánh xạ dữ liệu (`mapping.json`/`pipeline.py`/`transforms.py`) không đổi gì so
-với trước. Phần MỚI duy nhất là khổ giấy: `templates/BTH_KSK_template.xlsx`
-đã đặt sẵn A4 ngang + "Fit to width = 1 trang" (toàn bộ cột nằm gọn 1 trang
-khi in ngang, số người nhiều thì chảy xuống nhiều trang dọc), tiêu đề cột vẫn
-in đậm + căn giữa như bản gốc bạn đã cung cấp ban đầu.
+| `tests/smoke_test.py` | Kiểm tra nhanh toàn bộ pipeline |
 
 ## ⚠️ Cần bạn xác nhận trước khi dùng chính thức
 
