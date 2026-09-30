@@ -60,13 +60,16 @@ def process_row(row, index, manual_keyword_map, lab_ref, cbc_ref,
     warnings = []
     canhbao_parts = []
 
-    hoten, w = T.normalize_name(row.get("ho_ten")); rec["hoten"] = hoten
+    hoten, w = T.normalize_name(row.get("ho_ten"))
+    hoten, _ = T.proper_case(hoten)  # Proper Case cho HỌ & TÊN (yeu cau Jo 30/09/2026)
+    rec["hoten"] = hoten
     rec["ten"], w = T.last_given_name(row.get("ho_ten"))
     rec["cccd"], w = T.as_text_id(row.get("dinh_danh_ca_nhan"))
     if w: warnings.append(w)
     rec["ngaysinh"], w = T.parse_dob(row.get("ngay_sinh"))
     if w: warnings.append(w)
     rec["gioitinh"], w = T.gender_label(row.get("gioi_tinh"))
+    rec["gioitinh"], _ = T.proper_case(rec["gioitinh"])  # Proper Case cho GIỚI TÍNH
     if w: warnings.append(w)
     rec["chieucao"], w = T.to_number(row.get("chieucao"))
     rec["cannang"], w = T.to_number(row.get("cannang"))
@@ -104,6 +107,7 @@ def process_row(row, index, manual_keyword_map, lab_ref, cbc_ref,
     # --- ghi chu (uu tien Ghi ro > Ket luan > ICD) ---
     icd_fallback = build_icd_fallback(row) if icd_fallback_enabled else None
     rec["ghichu"], w = T.ghichu_priority(row.get("de_nghi"), row.get("danh_muc_de_nghi"), icd_fallback)
+    rec["ghichu"], _ = T.proper_case(rec["ghichu"])  # Proper Case cho GHI CHÚ (yeu cau Jo 30/09/2026)
     if w:
         canhbao_parts.append(w)
 
