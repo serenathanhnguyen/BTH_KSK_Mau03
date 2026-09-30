@@ -7,12 +7,40 @@ report.py. Day la lop nghiep vu trung tam - moi quy tac trong
 Khung_nguyen_tac_BTH_KSK_Streamlit_v2.md nen duoc ap dung o day, KHONG
 duoc rai rac trong app.py hay report.py.
 """
+import json
+import os
+
 import transforms as T
 import cbc_rules
 
 PHANLOAI_SUFFIX = "_phanloai"
 NAMED_LAB_KEYS = ["alt", "ast", "ure", "creatinin", "acid_uric", "glucose",
                   "cholesterol", "triglycerid", "hdl", "ldl"]
+
+# Bang tra ma ICD-10 -> ten benh (Thong tu 06/2026/TT-BYT, Jo cung cap
+# 30/09/2026) - nap 1 lan luc import module, dung cho build_icd_fallback().
+_ICD_MAP_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icd_reminders.json")
+
+
+def _load_icd_disease_map():
+    try:
+        with open(_ICD_MAP_PATH, encoding="utf-8") as f:
+            return json.load(f).get("benh", {})
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+ICD_DISEASE_MAP = _load_icd_disease_map()
+
+_SOBO_SUFFIXES = ("_chandoansobo_icd", "_chuandoansobo_icd")
+_XACDINH_SUFFIXES = ("_chandoanxacdinh_icd", "_chuandoanxacdinh_icd")
+
+
+def _strip_suffix(kw, suffixes):
+    for suf in suffixes:
+        if kw.endswith(suf):
+            return kw[: -len(suf)]
+    return None
 
 
 def _get_kw(row, keyword):
@@ -36,18 +64,59 @@ def _collect_phanloai(row):
     return out
 
 
-def build_icd_fallback(row):
-    """Phuong an du phong cuoi cho Ghi chu: ghep ma ICD tu cac chuyen khoa
-    khi ca Ghi ro va Ket luan deu trong (muc 2, quy tac 3 - da duoc chot
-    trong khung-mau-bang-tong-hop-suc-khoe.md)."""
-    parts = []
+def build_icd_fallback(row, icd_map=None):
+    """Phuong an du phong cuoi cho Ghi chu (CHI dung khi ca Ghi ro va Ket
+    luan deu trong - da chot theo yeu cau Jo 30/09/2026, giu dung thu tu
+    uu tien cu: Ghi ro > Ket luan > loi nhac ICD nay):
+      - Cot *_chandoanxacdinh_icd (chan doan XAC DINH) co ma ICD khop duoc
+        ten benh trong bang tra -> "đang bị bệnh <ten benh>".
+      - Cot *_chandoansobo_icd (chan doan SO BO) co ma ICD khop duoc ten
+        benh -> "theo dõi bệnh <ten benh>" (bo qua neu benh do da nam trong
+        nhom "đang bị" o tren, tranh lap lai).
+      - Ma ICD (o cot xac dinh) KHONG khop duoc benh nao trong bang tra van
+        giu nguyen dinh dang cu "<chuyen khoa>: <ma>" de khong mat thong tin
+        (phong truong hop bang tra ICD chua co ma do).
+    Mot o co the co nhieu ma ICD cach nhau boi dau phay - xu ly tung ma."""
+    if icd_map is None:
+        icd_map = ICD_DISEASE_MAP
+
+    dang_bi = {}   # ten_benh (khong dau hoa) -> True, theo thu tu gap
+    theo_doi = {}
+    raw_fallback_parts = []
+
     for kw, val in row.items():
-        if isinstance(kw, str) and kw.endswith("_chandoanxacdinh_icd") or (
-            isinstance(kw, str) and kw.endswith("_chuandoanxacdinh_icd")
-        ):
-            if val not in (None, ""):
-                specialty = kw.split("_chandoanxacdinh_icd")[0].split("_chuandoanxacdinh_icd")[0]
-                parts.append(f"{specialty}: {val}")
+        if not isinstance(kw, str) or val in (None, ""):
+            continue
+
+        specialty = _strip_suffix(kw, _XACDINH_SUFFIXES)
+        if specialty is not None:
+            unmatched_codes = []
+            for code in str(val).split(","):
+                code = code.strip()
+                if not code:
+                    continue
+                name = T.icd_disease_name(code, icd_map)
+                if name:
+                    dang_bi.setdefault(name, True)
+                else:
+                    unmatched_codes.append(code)
+            if unmatched_codes:
+                raw_fallback_parts.append(f"{specialty}: {', '.join(unmatched_codes)}")
+            continue
+
+        specialty = _strip_suffix(kw, _SOBO_SUFFIXES)
+        if specialty is not None:
+            for code in str(val).split(","):
+                code = code.strip()
+                if not code:
+                    continue
+                name = T.icd_disease_name(code, icd_map)
+                if name:
+                    theo_doi.setdefault(name, True)
+
+    parts = [f"đang bị bệnh {name}" for name in dang_bi]
+    parts += [f"theo dõi bệnh {name}" for name in theo_doi if name not in dang_bi]
+    parts += raw_fallback_parts
     return "; ".join(parts) if parts else None
 
 
