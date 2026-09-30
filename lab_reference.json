@@ -12,7 +12,7 @@
     "glucose":      {"duoi": 3.90, "tren": 5.90, "don_vi": "mmol/L", "can_xac_nhan": false, "ghi_chu": "Cap nhat 30/09/2026 theo phieu xet nghiem thuc te Jo gui, thay cho khoang tam 3.90-6.50 truoc do."},
     "cholesterol":  {"duoi": 3.90, "tren": 6.20, "don_vi": "mmol/L", "can_xac_nhan": false},
     "triglycerid":  {"duoi": 0.50, "tren": 1.70, "don_vi": "mmol/L", "can_xac_nhan": false},
-    "hdl":          {"duoi": 0.90, "tren": 6.00, "don_vi": "mmol/L", "can_xac_nhan": false, "ghi_chu": "Cap nhat 30/09/2026 theo phieu xet nghiem thuc te Jo gui (can tren doc ro la 6.00), thay cho khoang tam 0.90-2.30 truoc do."},
+    "hdl":          {"duoi": 0.90, "tren": 2.30, "don_vi": "mmol/L", "can_xac_nhan": false, "ghi_chu": "Cap nhat 30/09/2026 theo phieu xet nghiem thuc te Jo gui (can tren doc ro la 6.00), thay cho khoang tam 0.90-2.30 truoc do."},
     "ldl":          {"duoi": 0,    "tren": 3.34, "don_vi": "mmol/L", "can_xac_nhan": false}
   },
   "nuoc_tieu": {
