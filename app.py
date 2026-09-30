@@ -46,9 +46,6 @@ EXTRA_MANUAL_FIELDS = [
     ("satv", "Siêu âm vú (SAV)", ["SAV", "sieu_am_2_tuyen_vu"]),
     ("xq", "X-quang (XQ)", ["XQ", "xq"]),
 ]
-# key manual_map (nhu tren) -> id cot trong mapping.json (dung cho availability_preview)
-_MANUAL_KEY_TO_COL_ID = {"acid_uric": "aciduric", "cholesterol": "cho", "triglycerid": "tri",
-                          "hdl": "hdl", "ldl": "ldl", "satq": "satq", "satv": "satv", "xq": "xq"}
 
 
 @st.cache_data(show_spinner=False)
@@ -160,10 +157,6 @@ def main():
             manual_map[key] = choice or None
 
     cfg_local = dict(cfg)
-    availability_preview = {
-        _MANUAL_KEY_TO_COL_ID[key]: bool(manual_map.get(key))
-        for key, _label, _cand in EXTRA_MANUAL_FIELDS
-    }
 
     if st.button("Xử lý dữ liệu", type="primary"):
         records = pipeline.process_all(
@@ -183,8 +176,11 @@ def main():
     records = st.session_state["records"]
     meta = st.session_state["meta"]
 
+    # Chi dung avail TINH THAT tu du lieu da xu ly (pipeline.column_availability) -
+    # KHONG con "availability_preview" tu viec da chon keyword hay chua, vi no ep
+    # cot hien ra ke ca khi cot do KHONG co du lieu thuc (loi Jo bao 30/09/2026,
+    # ro nhat o Sieu am vu: co chon keyword mac dinh nhung file khong do chi so nay).
     avail = pipeline.column_availability(records)
-    avail.update(availability_preview)
     enabled_cols = mapping_mod.ordered_enabled_columns(cfg, availability=avail)
 
     st.subheader("4. Chọn cột hiển thị trong báo cáo")
