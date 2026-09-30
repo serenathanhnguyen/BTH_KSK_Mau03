@@ -36,6 +36,16 @@
     "plt": {
       "don_vi": "G/L",
       "nhom": {"mac_dinh": {"duoi": 150, "tren": 400}}
+    },
+    "rbc": {
+      "don_vi": "T/L",
+      "nhom": {"mac_dinh": {"duoi": 3.5, "tren": 6.0}},
+      "_ghi_chu": "Hong cau (so luong hong cau, cot kskdk_xnm_slhc). Nguong Jo xac nhan qua chat 01/10/2026 (\"nguong 3,5 - 6,0\"), CHUA doi chieu voi phieu xet nghiem thuc te nhu Hb/MCV/WBC/PLT - neu sau nay Jo gui phieu thuc te co so khac thi cap nhat lai."
     }
+  },
+  "thieu_mau_hb": {
+    "don_vi": "g/L",
+    "nhom": {"nam": 130, "nu": 120},
+    "_ghi_chu": "Nguong RIENG (theo gioi tinh, don vi g/L) de tu dong ghi 'Theo dõi thiếu máu' vao cot DANH GIA khi Hb (quy doi ve g/dL roi nhan 10 de so sanh) THAP HON nguong nay - yeu cau + nguong Jo xac nhan qua chat 01/10/2026 (\"Nam: Hb <130 g/L; Nữ: Hb <120 g/L\"). KHAC voi nguong.hb o tren (don vi g/dL, dung rieng cho Canh bao CTM 'Hb giảm/tăng', da duyet 30/09/2026 tu phieu xet nghiem thuc te, khong gioi han theo gioi tinh) - 2 nguong nay dung cho 2 muc dich khac nhau, KHONG gop chung."
   }
 }
