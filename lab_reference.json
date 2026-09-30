@@ -9,10 +9,10 @@
     "ure":          {"duoi": 2.5,  "tren": 7.5,  "don_vi": "mmol/L", "can_xac_nhan": false},
     "creatinin":    {"duoi": 46,   "tren": 106,  "don_vi": "umol/L", "can_xac_nhan": false},
     "acid_uric":    {"duoi": 150,  "tren": 420,  "don_vi": "umol/L", "can_xac_nhan": false, "ghi_chu": "Truoc day tam khong dung do nghi ngo don vi; phieu 29/09/2026 cho ro don vi umol/L, da bo sung."},
-    "glucose":      {"duoi": 3.90, "tren": 6.50, "don_vi": "mmol/L", "can_xac_nhan": true, "ghi_chu": "Anh 'Sinh hoa mau' truoc day ghi 3.90-6.50; phieu benh nhan 29/09/2026 lai ghi 3.90-5.90. Dang dung tam 3.90-6.50 (gia tri da duyet gan nhat) - CAN Jo xac nhan lai truoc khi dung chinh thuc."},
+    "glucose":      {"duoi": 3.90, "tren": 5.90, "don_vi": "mmol/L", "can_xac_nhan": true, "ghi_chu": "Anh 'Sinh hoa mau' truoc day ghi 3.90-6.50; phieu benh nhan 29/09/2026 lai ghi 3.90-5.90. Dang dung tam 3.90-6.50 (gia tri da duyet gan nhat) - CAN Jo xac nhan lai truoc khi dung chinh thuc."},
     "cholesterol":  {"duoi": 3.90, "tren": 6.20, "don_vi": "mmol/L", "can_xac_nhan": false},
     "triglycerid":  {"duoi": 0.50, "tren": 1.70, "don_vi": "mmol/L", "can_xac_nhan": false},
-    "hdl":          {"duoi": 0.90, "tren": 2.30, "don_vi": "mmol/L", "can_xac_nhan": true, "ghi_chu": "Phieu 29/09/2026 bi mo o can tren, doc tam khong ro. Dang dung tam 0.90-2.30 (gia tri da duyet gan nhat) - CAN Jo xac nhan lai."},
+    "hdl":          {"duoi": 0.90, "tren": 6.0, "don_vi": "mmol/L", "can_xac_nhan": true, "ghi_chu": "Phieu 29/09/2026 bi mo o can tren, doc tam khong ro. Dang dung tam 0.90-2.30 (gia tri da duyet gan nhat) - CAN Jo xac nhan lai."},
     "ldl":          {"duoi": 0,    "tren": 3.34, "don_vi": "mmol/L", "can_xac_nhan": false}
   },
   "nuoc_tieu": {
