@@ -256,6 +256,50 @@ def urine_flag(titrong_raw, ph_raw, ref_nuoc_tieu, **kw):
     return flag, issues, None
 
 
+# Cac chi so ĐỊNH TÍNH khac cua Tong phan tich nuoc tieu (ngoai Ti trong/pH da
+# co o urine_flag) - trong M03 thuc te (kskdk_xnnt_*) la CAC O SO (thang do
+# dai/ban dinh luong cua que thu nuoc tieu, vd Protein 15/30/100/300,
+# Glucose 100/1000, Bach cau 500...): quy uoc chung cua que thu la 0/rong =
+# Am tinh (binh thuong), BAT KY gia tri KHAC 0 nao = Duong tinh (bat thuong)
+# - dung de dua vao cot DANH GIA khi co gia tri duong tinh (yeu cau Jo
+# 30/09/2026 dot 3: "Nitrit dương tính,..."). "kskdk_xnnt_khac" la o ghi chu
+# tu do, KHONG phai chi so dinh tinh nen khong dua vao day.
+URINE_QUALITATIVE_LABELS = {
+    "bachcau": "Bạch cầu",
+    "bilirubin": "Bilirubin",
+    "cetonic": "Ceton",
+    "glucose": "Glucose niệu",
+    "hongcau": "Hồng cầu",
+    "nitrit": "Nitrit",
+    "protein": "Protein",
+    "urobilinogen": "Urobilinogen",
+}
+
+_AM_TINH_TEXTS = {"ÂM TÍNH", "AM TINH", "NEGATIVE", "NEG", "-", "0", "KHÔNG"}
+
+
+def urine_positive_findings(row, **kw):
+    """Quet cac chi so DINH TINH cua Tong phan tich nuoc tieu (xem
+    URINE_QUALITATIVE_LABELS) trong 1 dong du lieu tho, tra ve danh sach cac
+    chuoi "{Ten chi so} dương tính" cho nhung chi so co gia tri DUONG TINH
+    (so khac 0, hoac van ban khong phai mot trong cac cach ghi "am tinh" da
+    biet). Dung de dua vao cot DANH GIA - yeu cau Jo 30/09/2026 dot 3."""
+    findings = []
+    for suffix, label in URINE_QUALITATIVE_LABELS.items():
+        raw = row.get(f"kskdk_xnnt_{suffix}")
+        if raw is None or str(raw).strip() == "":
+            continue
+        val, _ = to_number(raw)
+        if val is not None:
+            if val != 0:
+                findings.append(f"{label} dương tính")
+            continue
+        text = _normalize_ws_upper(raw)
+        if text not in _AM_TINH_TEXTS:
+            findings.append(f"{label} dương tính")
+    return findings
+
+
 _ICD_STRIP_RE = re.compile(r"[^A-Z0-9.]")
 
 
@@ -333,17 +377,74 @@ def verbatim(raw, **kw):
 
 _XQUANG_BINH_THUONG = "PHỔI SÁNG BÌNH THƯỜNG"
 
+# Cac cum tu "BINH THUONG" thuong gap trong ket qua X-quang/Sieu am dang van
+# ban tu do cua M03 (so khop CHINH XAC sau khi chuan hoa hoa/thuong + khoang
+# trang - AN TOAN hon so khop chua/mot phan, tranh bo sot noi dung bat
+# thuong that su). Dung chung cho ca xquang_flag va finding_flag (sieu am).
+_BINH_THUONG_PATTERNS = {
+    _XQUANG_BINH_THUONG,
+    "BÌNH THƯỜNG",
+    "CHƯA GHI NHẬN BẤT THƯỜNG",
+    "KHÔNG GHI NHẬN BẤT THƯỜNG",
+    "CHƯA PHÁT HIỆN BẤT THƯỜNG",
+    "KHÔNG PHÁT HIỆN BẤT THƯỜNG",
+}
+
+
+def _normalize_ws_upper(raw):
+    return " ".join(str(raw).strip().upper().split())
+
 
 def xquang_flag(raw, **kw):
     """X-quang (cot xq): rut gon theo yeu cau Jo 30/09/2026 -
-    'PHỔI SÁNG BÌNH THƯỜNG' (khong phan biet hoa/thuong, khoang trang thua)
-    -> 'bt'; co gia tri khac -> 'x'; o trong -> giu trong (None)."""
+    'PHỔI SÁNG BÌNH THƯỜNG' hoac cac cum 'binh thuong' thong dung khac
+    (khong phan biet hoa/thuong, khoang trang thua) -> 'bt'; co gia tri
+    khac -> 'x'; o trong -> giu trong (None)."""
     if raw is None or str(raw).strip() == "":
         return None, None
-    text = " ".join(str(raw).strip().upper().split())
-    if text == _XQUANG_BINH_THUONG:
+    text = _normalize_ws_upper(raw)
+    if text in _BINH_THUONG_PATTERNS:
         return "bt", None
     return "x", None
+
+
+# Alias dung chung cho Sieu am tong quat / Sieu am vu (cot satq/satv) - cung
+# logic nhu xquang_flag nhung ten trung tinh hon, dung de phan loai bt/x KHI
+# CAN (vd de biet co dua vao Danh gia hay khong), KHONG lam doi cach hien thi
+# hien tai cua cot satq/satv (van la verbatim nguyen van - yeu cau rieng
+# truoc do cua Jo, khong doi) - yeu cau Jo 30/09/2026 dot 3.
+finding_flag = xquang_flag
+
+
+_THEO_DOI_PREFIX_RE = re.compile(r"^theo\s*dõi\s*:?\s*", re.IGNORECASE)
+_SIDE_PAREN_RE = re.compile(r"\(([a-zđ])\)", re.IGNORECASE)
+
+
+def format_finding_for_danhgia(raw, prefix, **kw):
+    """Chuan hoa 1 ket qua CAN LAM SANG dang van ban tu do (Sieu am, X-quang)
+    BAT THUONG de dua vao cot DANH GIA - GIU NGUYEN noi dung nhu trong o goc
+    (yeu cau Jo 30/09/2026 dot 3: "giữ nguyên giá trị trong ô X-quang để ghi
+    qua ô Đánh giá"), chi:
+      - bo tien to "Theo dõi"/"Theo dõi:" o dau (neu co) - vi ban than cot
+        Danh gia da ham y day la dieu can theo doi, khong can lap lai;
+      - dua ve chu thuong (du lieu tho thuong la CHU HOA toan bo), rieng cac
+        ky hieu ben trong ngoac don 1 chu cai nhu (P)/(T) (quy uoc ben
+        phai/trai trong ghi chu y khoa) duoc GIU HOA;
+      - viet hoa chu cai dau tien cua noi dung;
+      - them tien to viet tat chuyen muc (vd "XQ", "SATQ", "SATV") o dau.
+    Tra ve None neu raw rong."""
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    if s == "":
+        return None
+    s = _THEO_DOI_PREFIX_RE.sub("", s).strip()
+    if s == "":
+        return None
+    low = s.lower()
+    low = _SIDE_PAREN_RE.sub(lambda m: "(" + m.group(1).upper() + ")", low)
+    body = low[0].upper() + low[1:] if low else low
+    return f"{prefix} {body}"
 
 
 # ---------------------------------------------------------------------------
