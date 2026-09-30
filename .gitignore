@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.streamlit/secrets.toml
+
+# Khong bao gio commit du lieu benh nhan / file kham thuc te
+*.xlsx
+!templates/*.xlsx
+!sample_data/*.xlsx
