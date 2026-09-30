@@ -30,6 +30,23 @@ DANHGIA_CTM_LABELS = {
     "plt": ("Tiểu cầu giảm", "Tiểu cầu tăng"),
 }
 
+# Ten chi so SINH HOA MAU rieng dung khi dua vao cot DANH GIA (yeu cau Jo
+# 01/10/2026 dot 2: "chỉ số nào ngoài ngưỡng bình thường thì ghi chỉ số đó
+# tăng hoặc giảm"). ALT/AST KHONG co rieng trong bang nay - xu ly gop rieng
+# thanh 1 muc "Men gan tăng" chung (xem process_row: chi can 1 trong 2 cao
+# hon tren la ghi, khong tach rieng ALT/AST, va khong co "Men gan giảm" vi
+# ca hai deu co can duoi = 0 nen khong bao gio thap hon duoc).
+DANHGIA_LAB_LABELS = {
+    "glucose": ("Glucose giảm", "Glucose tăng"),
+    "creatinin": ("Creatinin giảm", "Creatinin tăng"),
+    "ure": ("Urê giảm", "Urê tăng"),
+    "acid_uric": ("Acid uric giảm", "Acid uric tăng"),
+    "cholesterol": ("Cholesterol giảm", "Cholesterol tăng"),
+    "triglycerid": ("Triglycerid giảm", "Triglycerid tăng"),
+    "hdl": ("HDL-C giảm", "HDL-C tăng"),
+    "ldl": ("LDL-C giảm", "LDL-C tăng"),
+}
+
 # Bang tra ma ICD-10 -> ten benh (Thong tu 06/2026/TT-BYT, Jo cung cap
 # 30/09/2026) - nap 1 lan luc import module, dung cho build_icd_fallback().
 _ICD_MAP_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icd_reminders.json")
@@ -436,6 +453,21 @@ def process_row(row, index, manual_keyword_map, lab_ref, cbc_ref,
         extra_findings.append("Theo dõi thiếu máu")
     if urine_enabled:
         extra_findings += T.urine_positive_findings(row)
+    # sinh hoa mau: chi so nao ngoai nguong -> ghi "<ten> tăng"/"<ten> giảm"
+    # (yeu cau Jo 01/10/2026 dot 2); rieng ALT/AST gop chung thanh 1 muc
+    # "Men gan tăng" (chi can 1 trong 2 vuot tren la du, khong tach rieng).
+    men_gan_tang = lab_values["alt"]["bold"] or lab_values["ast"]["bold"]
+    if men_gan_tang:
+        extra_findings.append("Men gan tăng")
+    for key, labels in DANHGIA_LAB_LABELS.items():
+        info = lab_values.get(key)
+        if not info:
+            continue
+        lo_label, hi_label = labels
+        if info["bold"]:
+            extra_findings.append(hi_label)
+        elif info["italic"]:
+            extra_findings.append(lo_label)
     for raw_val, prefix in ((xq_raw, "XQ"), (satq_raw, "SATQ"), (satv_raw, "SATV")):
         flag, _ = T.finding_flag(raw_val)
         if flag == "x":
