@@ -244,6 +244,37 @@ def urine_flag(titrong_raw, ph_raw, ref_nuoc_tieu, **kw):
     return flag, issues, None
 
 
+_ICD_STRIP_RE = re.compile(r"[^A-Z0-9.]")
+
+
+def _normalize_icd_code(raw):
+    if raw is None:
+        return None
+    s = _ICD_STRIP_RE.sub("", str(raw).strip().upper())
+    return s or None
+
+
+def icd_disease_name(raw_code, icd_map):
+    """Tra ten benh (tieng Viet, da bo tien to 'Bệnh ' va viet thuong chu
+    dau) tu 1 ma ICD, dung bang tra icd_reminders.json (Thong tu 06/2026).
+    Khop CHINH XAC truoc; neu khong thay, thu khop theo 3 ky tu dau (nhom
+    benh). Tra ve None neu khong khop duoc ma nao trong bang."""
+    code = _normalize_icd_code(raw_code)
+    if not code or not icd_map:
+        return None
+    name = icd_map.get(code)
+    if name is None and len(code) > 3:
+        name = icd_map.get(code[:3])
+    if name is None:
+        return None
+    name = name.strip()
+    if name.lower().startswith("bệnh "):
+        name = name[len("bệnh "):]
+    if name:
+        name = name[0].lower() + name[1:]
+    return name or None
+
+
 def proper_case(raw, **kw):
     """Chuyen text ve dang 'Proper Case' (moi tu viet hoa chu cai dau, cac
     chu con lai giu nguyen dang thuong cua tu do) - ap dung cho Ho & Ten,
