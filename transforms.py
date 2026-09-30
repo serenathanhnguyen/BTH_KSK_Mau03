@@ -244,6 +244,19 @@ def urine_flag(titrong_raw, ph_raw, ref_nuoc_tieu, **kw):
     return flag, issues, None
 
 
+def proper_case(raw, **kw):
+    """Chuyen text ve dang 'Proper Case' (moi tu viet hoa chu cai dau, cac
+    chu con lai giu nguyen dang thuong cua tu do) - ap dung cho Ho & Ten,
+    Gioi tinh, Ghi chu theo yeu cau Jo 30/09/2026. Giu nguyen None/chuoi rong."""
+    if raw is None:
+        return None, None
+    s = str(raw)
+    if s.strip() == "":
+        return s, None
+    words = s.split()
+    return " ".join(w.capitalize() for w in words), None
+
+
 def verbatim(raw, **kw):
     if raw is None or raw == "":
         return None, None
