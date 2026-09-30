@@ -313,7 +313,7 @@ def process_row(row, index, manual_keyword_map, lab_ref, cbc_ref,
     rec["satq"], _ = T.verbatim(row.get(manual_keyword_map.get("satq")) if manual_keyword_map.get("satq") else None)
     satv_kw = manual_keyword_map.get("satv") or "sieu_am_2_tuyen_vu"
     rec["satv"], _ = T.verbatim(row.get(satv_kw))
-    xq_kw = manual_keyword_map.get("xq") or "xq"
+    xq_kw = manual_keyword_map.get("xq") or "kskdk_chuan_doan_hinh_anh"
     rec["xq"], _ = T.xquang_flag(row.get(xq_kw))
 
     rec["canhbao"] = " | ".join(canhbao_parts)
