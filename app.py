@@ -103,7 +103,7 @@ def main():
         urine_enabled = st.checkbox("Tự đánh giá bt/x cho nước tiểu (tỉ trọng/pH)", value=True)
     with c3:
         icd_fallback = st.checkbox("Cho phép ghép ICD khi Ghi rõ & Kết luận đều trống", value=True)
-    sort_by_ten = st.checkbox("Sắp xếp theo cột TÊN (A→Z, theo bảng chữ cái tiếng Việt)", value=False)
+    sort_by_ten = st.checkbox("Sắp xếp theo cột TÊN (A→Z, theo bảng chữ cái tiếng Việt)", value=True)
 
     st.subheader("3. Ánh xạ thủ công cho các chỉ số chưa có keyword mặc định")
     st.caption("Cholesterol/Triglycerid/HDL/LDL/Acid Uric/Siêu âm tổng quát thường KHÔNG có keyword cố định "
