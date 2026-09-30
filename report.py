@@ -186,7 +186,10 @@ def build_report(records, enabled_columns, meta, out_path, template_path=TEMPLAT
             cell.value = val
             bold, italic = _record_font_flags(rec, cid)
             f = cell.font
-            cell.font = Font(name=f.name, size=f.size, bold=bold, italic=italic, color=f.color)
+            # QUY TAC (30/09/2026): moi cho in dam (cao hon tham chieu) doi mau do;
+            # cac o khac (binh thuong / in nghieng cho thap hon) giu nguyen mau chu.
+            font_color = "FFFF0000" if bold else f.color
+            cell.font = Font(name=f.name, size=f.size, bold=bold, italic=italic, color=font_color)
 
     # ---- TONG CONG: COUNTA tu F den Xep loai (khong tinh Ghi chu/Canh bao) ----
     ws[f"A{tong_row}"] = "TỔNG CỘNG"
@@ -204,7 +207,7 @@ def build_report(records, enabled_columns, meta, out_path, template_path=TEMPLAT
         if xl_letter:
             ws[f"C{rr}"] = f'=COUNTIF(${xl_letter}${DATA_START}:${xl_letter}${last_row},"{k}")'
 
-    ws[f"B{note_row}"] = ("Ghi chú: chỉ số cận lâm sàng in đậm = cao hơn giá trị tham chiếu; "
+    ws[f"B{note_row}"] = ("Ghi chú: chỉ số cận lâm sàng in đậm màu đỏ = cao hơn giá trị tham chiếu; "
                           "in nghiêng = thấp hơn giá trị tham chiếu.")
     # ngay ky luon giu dang cham cham, KHONG dien so cu the (QUY TAC 4)
     date_col_letter = get_column_letter(remap_col(column_index_from_string("V")))
