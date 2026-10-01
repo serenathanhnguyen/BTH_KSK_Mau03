@@ -267,8 +267,8 @@ def urine_flag(titrong_raw, ph_raw, ref_nuoc_tieu, **kw):
 URINE_QUALITATIVE_LABELS = {
     "bachcau": "Bạch cầu",
     "bilirubin": "Bilirubin",
-    "cetonic": "Ceton",
-    "glucose": "Glucose niệu",
+    "cetonic": "Cetonic",
+    "glucose": "Glucose",
     "hongcau": "Hồng cầu",
     "nitrit": "Nitrit",
     "protein": "Protein",
@@ -281,9 +281,11 @@ _AM_TINH_TEXTS = {"ÂM TÍNH", "AM TINH", "NEGATIVE", "NEG", "-", "0", "KHÔNG"}
 def urine_positive_findings(row, **kw):
     """Quet cac chi so DINH TINH cua Tong phan tich nuoc tieu (xem
     URINE_QUALITATIVE_LABELS) trong 1 dong du lieu tho, tra ve danh sach cac
-    chuoi "{Ten chi so} dương tính" cho nhung chi so co gia tri DUONG TINH
-    (so khac 0, hoac van ban khong phai mot trong cac cach ghi "am tinh" da
-    biet). Dung de dua vao cot DANH GIA - yeu cau Jo 30/09/2026 dot 3."""
+    chuoi "{Ten chi so} [niệu] dương tính" cho nhung chi so co gia tri DUONG
+    TINH (so khac 0, hoac van ban khong phai mot trong cac cach ghi "am
+    tinh" da biet). Dung de dua vao cot DANH GIA - yeu cau Jo 30/09/2026 dot
+    3, them "[niệu]" theo yeu cau Jo 01/10/2026 dot 3 de phan biet voi cac
+    chi so cung ten trong mau (vd "Bạch cầu tăng"/"Hồng cầu tăng" cua CTM)."""
     findings = []
     for suffix, label in URINE_QUALITATIVE_LABELS.items():
         raw = row.get(f"kskdk_xnnt_{suffix}")
@@ -292,11 +294,11 @@ def urine_positive_findings(row, **kw):
         val, _ = to_number(raw)
         if val is not None:
             if val != 0:
-                findings.append(f"{label} dương tính")
+                findings.append(f"{label} [niệu] dương tính")
             continue
         text = _normalize_ws_upper(raw)
         if text not in _AM_TINH_TEXTS:
-            findings.append(f"{label} dương tính")
+            findings.append(f"{label} [niệu] dương tính")
     return findings
 
 
