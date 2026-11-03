@@ -226,9 +226,15 @@ def main():
             r["canhbao"] = e["Cảnh báo"]
 
     st.subheader("7. Xuất báo cáo")
+    name_case_label = st.radio(
+        "Kiểu chữ cột Họ tên / Tên trong file Excel",
+        ["Họ tên in hoa", "Họ tên in thường"], index=0, horizontal=True,
+        help="In hoa: NGUYỄN THỊ ANH — In thường: Nguyễn Thị Anh (viết hoa chữ cái đầu mỗi từ).",
+    )
+    name_case = "upper" if name_case_label == "Họ tên in hoa" else "proper"
     if st.button("Tạo file Excel"):
         out_path = "/tmp/BTH_KSK_output.xlsx"
-        report_mod.build_report(records, enabled_cols, meta, out_path)
+        report_mod.build_report(records, enabled_cols, meta, out_path, name_case=name_case)
         with open(out_path, "rb") as f:
             st.download_button(
                 "Tải file Bảng Tổng Hợp (.xlsx)", f,
