@@ -346,6 +346,24 @@ def proper_case(raw, **kw):
     return " ".join(w.capitalize() for w in words), None
 
 
+NAME_CASE_UPPER = "upper"   # HỌ TÊN IN HOA (mac dinh)
+NAME_CASE_PROPER = "proper" # Họ Tên In Thường (viet hoa chu cai dau moi tu)
+
+
+def apply_name_case(raw, mode=NAME_CASE_UPPER):
+    """Dinh dang Ho ten / Ten khi XUAT EXCEL theo lua chon tren form
+    (yeu cau Jo 03/11/2026): 'upper' -> NGUYỄN THỊ ANH (mac dinh),
+    'proper' -> Nguyễn Thị Anh. Giu nguyen None/chuoi rong."""
+    if raw is None:
+        return None
+    s = " ".join(str(raw).split())
+    if not s:
+        return raw
+    if mode == NAME_CASE_PROPER:
+        return " ".join(w.capitalize() for w in s.split())
+    return s.upper()
+
+
 def sentence_case(raw, **kw):
     """Chi viet hoa CHU CAI DAU TIEN cua dong, giu nguyen phan con lai -
     ap dung cho GHI CHU va DANH GIA (dinh chinh lai 30/09/2026, thay the
