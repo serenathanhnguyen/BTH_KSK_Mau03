@@ -20,6 +20,8 @@ from openpyxl import load_workbook
 from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter, column_index_from_string
 
+import transforms as T
+
 TEMPLATE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates", "BTH_KSK_template.xlsx")
 
 # Vi tri CO DINH cua tung cot trong template goc (truoc khi xoa cot khong dung)
@@ -70,13 +72,16 @@ def _nearest_surviving(col_idx, deleted_set, direction):
     return c
 
 
-def build_report(records, enabled_columns, meta, out_path, template_path=TEMPLATE_PATH):
+def build_report(records, enabled_columns, meta, out_path, template_path=TEMPLATE_PATH,
+                 name_case="upper"):
     """
     records: list tu pipeline.process_all() — KHONG doi so voi truoc.
     enabled_columns: list cac dict cot (tu mapping.ordered_enabled_columns) —
                       dung DE QUYET DINH cot nao GIU LAI trong template, khong
                       dung de tu dung cot moi (template da co san du 37 cot).
     meta: dict {don_vi_chu_quan, tram_y_te, doi_tuong, nam, nguoi_lap_bang, giam_doc}
+    name_case: "upper" (HỌ TÊN IN HOA - mac dinh) hoac "proper" (Họ Tên In Thường),
+               ap dung cho 2 cot Ho ten va Ten khi ghi ra Excel.
     """
     wb = load_workbook(template_path)
     ws = wb.active
@@ -197,6 +202,8 @@ def build_report(records, enabled_columns, meta, out_path, template_path=TEMPLAT
                 val = i + 1
             elif cid == "bmi":
                 val = f"={col_letter['cannang']}{r}/({col_letter['chieucao']}{r}*{col_letter['chieucao']}{r})*10000"
+            elif cid in ("hoten", "ten"):
+                val = T.apply_name_case(rec.get(cid), name_case)
             else:
                 val = _record_value(rec, cid)
             cell = ws[f"{letter}{r}"]
