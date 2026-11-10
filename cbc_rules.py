@@ -176,3 +176,50 @@ def assess_anemia_qd1613(raw_hb, raw_rbc, ref_cfg, hb_source_unit=None):
     if rbc is None:
         return "thieu_rbc"
     return "nang" if rbc < cfg["rbc_duoi_tl"] else None
+
+
+ANEMIA_1832_LABELS = {
+    "nhe": "Thiếu máu nhẹ",
+    "vua": "Thiếu máu vừa",
+    "nang": "Thiếu máu nặng",
+    "rat_nang": "Thiếu máu rất nặng",
+}
+
+
+def assess_anemia_qd1832(raw_hb, gioitinh, ref_cfg, hb_source_unit=None):
+    """
+    Chan doan thieu mau theo QD 1832/QD-BYT (2022): Hb giam > 5% so voi gia
+    tri tham chieu theo gioi (thieu_mau_hb.nhom: nam 130, nu 120 g/L) -> co
+    thieu mau. Muc do theo Hb (g/L): nhe >= 90, vua 60-<90, nang 30-<60,
+    rat nang < 30.
+
+    Tra ve "nhe" / "vua" / "nang" / "rat_nang" hoac None (khong thieu mau,
+    thieu Hb, gioi tinh khong xac dinh, hoac thieu cau hinh).
+    """
+    cfg = (ref_cfg or {}).get("thieu_mau_qd1832")
+    ref_hb = (ref_cfg or {}).get("thieu_mau_hb")
+    if not cfg or not ref_hb:
+        return None
+    nhom = "nam" if gioitinh == "Nam" else ("nu" if gioitinh == "Nữ" else None)
+    if nhom is None:
+        return None
+    tham_chieu = ref_hb["nhom"].get(nhom)
+    if tham_chieu is None:
+        return None
+    if hb_source_unit is None:
+        hb_source_unit = ref_cfg.get("don_vi_nguon_m03_mac_dinh", {}).get("hb", "g/dL")
+    factor = _HB_UNIT_TO_GDL.get(hb_source_unit)
+    hb, _ = to_number(raw_hb)
+    if hb is None or factor is None:
+        return None
+    hb_gl = hb * factor * 10.0
+    if hb_gl >= tham_chieu * (1.0 - cfg["ty_le_giam_so_voi_tham_chieu"]):
+        return None
+    md = cfg["muc_do_hb_gl"]
+    if hb_gl >= md["nhe_tu"]:
+        return "nhe"
+    if hb_gl >= md["vua_tu"]:
+        return "vua"
+    if hb_gl >= md["nang_tu"]:
+        return "nang"
+    return "rat_nang"
