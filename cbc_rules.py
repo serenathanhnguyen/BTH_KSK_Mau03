@@ -145,3 +145,34 @@ def evaluate_ctm(raw_values, gioitinh, ref_cfg, hb_source_unit=None):
 
     # Tat ca chi so doc duoc deu trong nguong -> "bt"
     return "bt", "bt", chi_tiet, {}, thieu_mau
+
+
+def assess_anemia_qd1613(raw_hb, raw_rbc, ref_cfg, hb_source_unit=None):
+    """
+    Danh gia thieu mau NANG theo QD 1613/BYT-QD, chi tieu 50.5 (huong dan
+    muc 14): hong cau < 3 trieu (3.0 T/L) VA huyet sac to < 10 g/100ml
+    (10 g/dL). Bang phan loai danh dau loai III-IV.
+
+    Tra ve:
+      "nang"           - dat CA HAI tieu chi -> thieu mau nang (50.5)
+      "thieu_rbc"      - Hb < 10 g/dL nhung KHONG co so lieu hong cau ->
+                         chua du can cu ket luan theo 50.5
+      None             - khong dat tieu chi (hoac thieu Hb / thieu cau hinh)
+    QD 1613 khong co nguong cho thieu mau nhe/vua - truong hop do van di theo
+    nhanh 'Theo doi thieu mau' (thieu_mau_hb) co san.
+    """
+    cfg = (ref_cfg or {}).get("thieu_mau_qd1613")
+    if not cfg:
+        return None
+    if hb_source_unit is None:
+        hb_source_unit = ref_cfg.get("don_vi_nguon_m03_mac_dinh", {}).get("hb", "g/dL")
+    factor = _HB_UNIT_TO_GDL.get(hb_source_unit)
+    hb, _ = to_number(raw_hb)
+    if hb is None or factor is None:
+        return None
+    if hb * factor >= cfg["hb_duoi_gdl"]:
+        return None
+    rbc, _ = to_number(raw_rbc)
+    if rbc is None:
+        return "thieu_rbc"
+    return "nang" if rbc < cfg["rbc_duoi_tl"] else None
