@@ -293,6 +293,13 @@ def urine_positive_findings(row, **kw):
             continue
         val, _ = to_number(raw)
         if val is not None:
+            # Nitrit (neg/pos) la cot MA HOA, khong phai thang do dinh luong:
+            # 1 = am tinh, 0 = duong tinh (Jo xac nhan 10/11/2026);
+            # o trong = khong co ket qua (da bo qua o tren).
+            if suffix == "nitrit":
+                if val == 0:
+                    findings.append(f"{label} [niệu] dương tính")
+                continue
             if val != 0:
                 findings.append(f"{label} [niệu] dương tính")
             continue
