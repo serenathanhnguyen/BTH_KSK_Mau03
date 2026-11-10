@@ -448,26 +448,31 @@ def process_row(row, index, manual_keyword_map, lab_ref, cbc_ref,
             continue  # "hb" khong con ghi truc tiep - di theo nhanh Theo doi thieu mau rieng ben duoi
         lo_label, hi_label = labels
         extra_findings.append(hi_label if status == "cao" else lo_label)
-    # Thieu mau theo QD 1613 (chi tieu 50.5): Hb < 10 g/dL VA hong cau < 3 T/L
-    # -> "Thiếu máu nặng" (thay cho "Theo dõi thiếu máu", khong ghi trung).
-    # Chua dat tieu chi nang -> giu quy tac cu (Hb < 130 g/L nam, < 120 g/L nu).
+    # Chan doan thieu mau theo QD 1832/QD-BYT (2022), muc "Thieu mau: xep loai,
+    # chan doan": Hb giam > 5% so voi gia tri tham chieu theo gioi -> thieu
+    # mau; muc do theo Hb: nhe >= 90, vua 60-<90, nang 30-<60, rat nang <30 g/L.
+    # Thay cho quy tac cu "Theo doi thieu mau" (Hb < 130/120 g/L).
+    anemia_1832 = cbc_rules.assess_anemia_qd1832(
+        row.get("kskdk_xnm_huyetsacto"), rec["gioitinh"],
+        cbc_ref, hb_source_unit=hb_source_unit,
+    )
+    if anemia_1832:
+        extra_findings.append(cbc_rules.ANEMIA_1832_LABELS[anemia_1832])
+    # QD 1613 (chi tieu 50.5) chi dung de nhac Xep loai, KHONG ghi vao Danh gia:
+    # Hb < 10 g/dL VA hong cau < 3 T/L -> thieu mau nang thuong xuyen, loai III-IV.
     anemia_1613 = cbc_rules.assess_anemia_qd1613(
         row.get("kskdk_xnm_huyetsacto"), row.get("kskdk_xnm_slhc"),
         cbc_ref, hb_source_unit=hb_source_unit,
     )
     if anemia_1613 == "nang":
-        extra_findings.append("Thiếu máu nặng")
         canhbao_parts.append(
             "Thiếu máu nặng theo QĐ 1613 (chỉ tiêu 50.5: Hb < 10 g/dL và hồng cầu < 3 T/L) "
             "— bảng phân loại ghi loại III–IV, kiểm tra Xếp loại."
         )
-    elif ctm_thieu_mau:
-        # Hb thap hon nguong rieng theo gioi tinh (g/L) - yeu cau Jo 01/10/2026
-        extra_findings.append("Theo dõi thiếu máu")
-        if anemia_1613 == "thieu_rbc":
-            canhbao_parts.append(
-                "Hb < 10 g/dL nhưng thiếu số liệu hồng cầu — chưa xác định được thiếu máu nặng theo QĐ 1613 (50.5)."
-            )
+    elif anemia_1613 == "thieu_rbc":
+        canhbao_parts.append(
+            "Hb < 10 g/dL nhưng thiếu số liệu hồng cầu — chưa xác định được thiếu máu nặng theo QĐ 1613 (50.5)."
+        )
     if urine_enabled:
         extra_findings += T.urine_positive_findings(row)
     # sinh hoa mau: chi so nao ngoai nguong -> ghi "<ten> tăng"/"<ten> giảm"
