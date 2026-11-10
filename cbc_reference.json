@@ -48,6 +48,12 @@
     "rbc_duoi_tl": 3.0,
     "_ghi_chu": "QD 1613/BYT-QD (15/08/1997), chi tieu 50.5 'Thieu mau nang thuong xuyen', huong dan muc 14: xac dinh bang cong thuc mau, hong cau duoi 3 trieu (3.0 T/L) VA huyet sac to duoi 10 g/100ml (10 g/dL). Bang phan loai danh dau loai III-IV. QD 1613 KHONG co nguong cho thieu mau nhe/vua."
   },
+  "thieu_mau_qd1832": {
+    "ty_le_giam_so_voi_tham_chieu": 0.05,
+    "tham_chieu_hb_gl_lay_tu": "thieu_mau_hb.nhom",
+    "muc_do_hb_gl": {"nhe_tu": 90, "vua_tu": 60, "nang_tu": 30},
+    "_ghi_chu": "QD 1832/QD-BYT (07/01/2022), Chuong 1 muc 1 'Thieu mau: xep loai, chan doan va dieu tri': chan doan xac dinh khi Hb giam > 5% so voi gia tri tham chieu (theo tuoi, gioi, dieu kien song). Muc do: nhe 90-120 g/L; vua 60-<90; nang 30-<60; rat nang <30. Gia tri tham chieu dung thieu_mau_hb.nhom (nam 130, nu 120 g/L) -> nguong chan doan = 123.5 (nam), 114 (nu) g/L. Hb >= 90 g/L va thap hon nguong chan doan -> 'nhe' (gom ca Hb 120-123.5 cua nam)."
+  },
   "thieu_mau_hb": {
     "don_vi": "g/L",
     "nhom": {"nam": 130, "nu": 120},
