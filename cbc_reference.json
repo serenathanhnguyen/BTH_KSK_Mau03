@@ -52,7 +52,7 @@
     "ty_le_giam_so_voi_tham_chieu": 0.05,
     "tham_chieu_hb_gl_lay_tu": "thieu_mau_hb.nhom",
     "muc_do_hb_gl": {"nhe_tu": 90, "vua_tu": 60, "nang_tu": 30},
-    "_ghi_chu": "CAP NHAT 11/11/2026 (yeu cau Jo): danh gia thieu mau PHAN TANG 2 MUC, ket hop moc theo gioi (thieu_mau_hb: nam 130, nu 120 g/L) voi nguong tham chieu Hb tren phieu xet nghiem (nguong.hb: 11.0 g/dL = 110 g/L). Hb < 110 g/L -> Thieu mau, muc do theo QD 1832/QD-BYT (07/01/2022): nhe 90-<110, vua 60-<90, nang 30-<60, rat nang <30 g/L. 110 <= Hb < moc theo gioi (nam 130 / nu 120) -> Theo doi thieu mau. Hb >= moc theo gioi -> khong ghi. Truong ty_le_giam_so_voi_tham_chieu (5%) KHONG con duoc dung - giu lai de tham khao."
+    "_ghi_chu": "CAP NHAT 11/11/2026 (yeu cau Jo): thieu mau xac dinh theo nguong tham chieu Hb tren phieu xet nghiem (nguong.hb: 11.0 g/dL = 110 g/L). Hb < 110 g/L -> Thieu mau, muc do theo QD 1832/QD-BYT (07/01/2022): nhe 90-<110, vua 60-<90, nang 30-<60, rat nang <30 g/L. Hb >= 110 g/L -> KHONG ghi gi (khong co muc Theo doi thieu mau). Truong ty_le_giam_so_voi_tham_chieu (5%) va thieu_mau_hb (moc 130/120 g/L) khong con dung cho quy tac nay - giu lai de tham khao."
   },
   "thieu_mau_hb": {
     "don_vi": "g/L",
