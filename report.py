@@ -18,6 +18,8 @@ import os
 
 from openpyxl import load_workbook
 from openpyxl.styles import Font, Alignment
+from openpyxl.cell.rich_text import CellRichText, TextBlock
+from openpyxl.cell.text import InlineFont
 from openpyxl.utils import get_column_letter, column_index_from_string
 
 import transforms as T
@@ -192,7 +194,17 @@ def build_report(records, enabled_columns, meta, out_path, template_path=TEMPLAT
     if meta.get("don_vi_chu_quan"):
         ws["A1"] = meta["don_vi_chu_quan"]
     if meta.get("tram_y_te"):
-        ws["A2"] = meta["tram_y_te"]
+        tram = meta["tram_y_te"]
+        if tram.strip().upper() == "TRẠM Y TẾ":
+            # gach chan bang chuc nang Underline (rich text) duoi "ẠM Y " - KHONG ve shape
+            _f = dict(rFont="Times New Roman", sz=13, b=True)
+            ws["A2"] = CellRichText(
+                TextBlock(InlineFont(**_f), "TR"),
+                TextBlock(InlineFont(u="single", **_f), "ẠM Y "),
+                TextBlock(InlineFont(**_f), "TẾ"),
+            )
+        else:
+            ws["A2"] = tram
 
     # ---- du lieu ----
     for i, rec in enumerate(records):
@@ -266,7 +278,8 @@ def build_report(records, enabled_columns, meta, out_path, template_path=TEMPLAT
     #   toan bo cot, size 13.
     def _resize(cell, size):
         f = cell.font
-        cell.font = Font(name=f.name, size=size, bold=f.bold, italic=f.italic, color=f.color)
+        cell.font = Font(name=f.name, size=size, bold=f.bold, italic=f.italic,
+                         underline=f.underline, color=f.color)  # giu underline (vd "Độc lập - Tự do - Hạnh phúc")
 
     max_row_final = max(ws.max_row, name_row)
 
