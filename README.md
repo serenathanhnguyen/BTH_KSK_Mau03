@@ -100,7 +100,7 @@ in đậm + căn giữa như bản gốc bạn đã cung cấp ban đầu.
 
 1. ~~Khoảng tham chiếu Glucose và HDL-Cholesterol~~ — **đã chốt 30/09/2026**
    theo phiếu Kết Quả Xét Nghiệm thực tế Jo gửi (BN Trần Huệ Ân, mẫu
-   LIS41199905, lấy mẫu 22/08/2026): Glucose 3.90–5.90 mmol/L, HDL-Cholesterol
+   LIS41199905, lấy mẫu 22/08/2026): Glucose 3.90–6.50 mmol/L (chỉnh lại 11/11/2026 theo yêu cầu Jo), HDL-Cholesterol
    0.90–6.00 mmol/L. `lab_reference.json` đã cập nhật, không còn cờ
    `can_xac_nhan` nào.
 2. ~~Khoảng tham chiếu Hb/MCV/WBC/PLT (CTM)~~ — **đã chốt 30/09/2026**: phiếu
@@ -110,6 +110,12 @@ in đậm + căn giữa như bản gốc bạn đã cung cấp ban đầu.
    `DA_DUYET`. Riêng nhóm "nữ mang thai" và "khác" của Hb vẫn chưa có ngưỡng
    riêng (ứng dụng báo "Chưa đủ dữ liệu đánh giá" cho các trường hợp đó) —
    cần bộ phận xét nghiệm cung cấp thêm nếu trạm có khám nhóm này.
+   **Đánh giá thiếu máu (cập nhật 11/11/2026)**: phân tầng 2 mức, kết hợp ngưỡng
+   tham chiếu Hb trên phiếu xét nghiệm (11.0 g/dL = 110 g/L) với mốc theo giới
+   (Nam 130 / Nữ 120 g/L). Hb < 110 g/L → ghi "Thiếu máu" kèm mức độ theo QĐ
+   1832/QĐ-BYT (nhẹ 90–<110, vừa 60–<90, nặng 30–<60, rất nặng <30 g/L);
+   110 g/L ≤ Hb < mốc theo giới → ghi "Theo dõi thiếu máu"; Hb ≥ mốc theo giới →
+   không ghi. Quy tắc cũ "Hb giảm >5% so với mốc theo giới" không còn dùng.
 3. **Đơn vị Hb thực tế trong file M03 của trạm** — header ghi (g/L) nhưng số
    liệu mẫu quan sát được có dạng g/dL; giao diện có ô chọn đơn vị thủ công
    ở bước 2, mặc định g/dL — kiểm tra lại đúng với file thật của trạm.
