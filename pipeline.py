@@ -448,10 +448,11 @@ def process_row(row, index, manual_keyword_map, lab_ref, cbc_ref,
             continue  # "hb" khong con ghi truc tiep - di theo nhanh Theo doi thieu mau rieng ben duoi
         lo_label, hi_label = labels
         extra_findings.append(hi_label if status == "cao" else lo_label)
-    # Chan doan thieu mau theo QD 1832/QD-BYT (2022), muc "Thieu mau: xep loai,
-    # chan doan": Hb giam > 5% so voi gia tri tham chieu theo gioi -> thieu
-    # mau; muc do theo Hb: nhe >= 90, vua 60-<90, nang 30-<60, rat nang <30 g/L.
-    # Thay cho quy tac cu "Theo doi thieu mau" (Hb < 130/120 g/L).
+    # Danh gia thieu mau PHAN TANG 2 MUC (11/11/2026, yeu cau Jo): Hb < nguong
+    # tham chieu tren phieu (11.0 g/dL = 110 g/L) -> Thieu mau, muc do theo QD
+    # 1832/QD-BYT (nhe >= 90, vua 60-<90, nang 30-<60, rat nang <30 g/L);
+    # 110 <= Hb < moc theo gioi (nam 130 / nu 120 g/L) -> "Theo doi thieu mau".
+    # Chi tiet: cbc_rules.assess_anemia_qd1832.
     anemia_1832 = cbc_rules.assess_anemia_qd1832(
         row.get("kskdk_xnm_huyetsacto"), rec["gioitinh"],
         cbc_ref, hb_source_unit=hb_source_unit,
