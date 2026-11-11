@@ -115,11 +115,14 @@ def main():
     c1, c2, c3 = st.columns(3)
     with c1:
         hb_unit = st.selectbox(
-            "Đơn vị Hb thực tế trong file này", ["g/dL", "g/L"], index=1,
-            help="Header M03 ghi (g/L) và file khám thực tế (tháng 10/2026) nhập dạng g/L (vd 87, 130). "
-                 "Mặc định g/L; chỉ đổi sang g/dL nếu số liệu dạng 13,0. "
-                 "Ứng dụng KHÔNG tự đoán theo độ lớn số liệu.",
+            "Đơn vị Hb thực tế trong file này",
+            ["Tự động nhận dạng", "g/dL", "g/L"], index=0,
+            help="Tự động: số từ 30 trở lên (vd 110, 130) hiểu là g/L; số dưới 30 (vd 11.0, 13.0) "
+                 "hiểu là g/dL — nhận dạng riêng từng giá trị rồi quy đổi để đánh giá. "
+                 "Chỉ chọn g/dL hoặc g/L thủ công nếu muốn ép một đơn vị cho cả file.",
         )
+        if hb_unit == "Tự động nhận dạng":
+            hb_unit = "auto"
     with c2:
         urine_enabled = st.checkbox("Tự đánh giá bt/x cho nước tiểu (tỉ trọng/pH)", value=True)
     with c3:
