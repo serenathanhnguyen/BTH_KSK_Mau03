@@ -25,6 +25,21 @@ LABELS = {
 # He so quy doi ve g/dL (chuan noi bo cua bang tham chieu Hb trong cbc_reference.json)
 _HB_UNIT_TO_GDL = {"g/dL": 1.0, "g/L": 0.1}
 
+# Tu nhan dang don vi Hb theo do lon (11/11/2026, yeu cau Jo): Hb nguoi lon
+# o g/dL nam trong khoang ~3-25 (vd 11.0, 15.7), o g/L nam trong ~30-250
+# (vd 110, 157). Gia tri >= 30 -> hieu la g/L, < 30 -> hieu la g/dL. Nhan
+# dang TUNG gia tri rieng le nen file tron lan hai kieu van doc dung.
+HB_AUTO_CUTOFF = 30.0
+
+def _hb_factor(unit, value):
+    """He so quy doi Hb ve g/dL. unit = None/"auto" -> tu nhan dang theo
+    do lon cua value; unit = "g/dL"/"g/L" -> dung don vi nguoi dung chon."""
+    if unit in (None, "auto"):
+        if value is None:
+            return None
+        return 0.1 if value >= HB_AUTO_CUTOFF else 1.0
+    return _HB_UNIT_TO_GDL.get(unit)
+
 # Nguong RIENG (g/L, theo gioi tinh) de xac dinh co ghi "Theo dõi thiếu máu"
 # vao cot DANH GIA hay khong - KHAC voi nguong.hb (dung cho Canh bao CTM
 # "Hb giảm/tăng"). Doc tu cbc_reference.json["thieu_mau_hb"] - yeu cau Jo
@@ -91,7 +106,7 @@ def evaluate_ctm(raw_values, gioitinh, ref_cfg, hb_source_unit=None):
         cbc_reference.json).
     """
     if hb_source_unit is None:
-        hb_source_unit = ref_cfg.get("don_vi_nguon_m03_mac_dinh", {}).get("hb", "g/dL")
+        hb_source_unit = "auto"
 
     resolved = {}   # chiso -> (gia_tri_da_quy_doi, ket_qua 'thap'/'binh_thuong'/'cao', ly_do_loi_neu_co)
     for chiso in ORDER:
@@ -102,7 +117,7 @@ def evaluate_ctm(raw_values, gioitinh, ref_cfg, hb_source_unit=None):
             continue
 
         if chiso == "hb":
-            factor = _HB_UNIT_TO_GDL.get(hb_source_unit)
+            factor = _hb_factor(hb_source_unit, val)
             if factor is None:
                 resolved[chiso] = (None, None, f"Đơn vị Hb không nhận dạng: {hb_source_unit}")
                 continue
@@ -165,9 +180,9 @@ def assess_anemia_qd1613(raw_hb, raw_rbc, ref_cfg, hb_source_unit=None):
     if not cfg:
         return None
     if hb_source_unit is None:
-        hb_source_unit = ref_cfg.get("don_vi_nguon_m03_mac_dinh", {}).get("hb", "g/dL")
-    factor = _HB_UNIT_TO_GDL.get(hb_source_unit)
+        hb_source_unit = "auto"
     hb, _ = to_number(raw_hb)
+    factor = _hb_factor(hb_source_unit, hb)
     if hb is None or factor is None:
         return None
     if hb * factor >= cfg["hb_duoi_gdl"]:
@@ -207,9 +222,9 @@ def assess_anemia_qd1832(raw_hb, gioitinh, ref_cfg, hb_source_unit=None):
         return None
     phieu_gl = th_phieu["duoi"] * (10.0 if hb_ref.get("don_vi") == "g/dL" else 1.0)
     if hb_source_unit is None:
-        hb_source_unit = ref_cfg.get("don_vi_nguon_m03_mac_dinh", {}).get("hb", "g/dL")
-    factor = _HB_UNIT_TO_GDL.get(hb_source_unit)
+        hb_source_unit = "auto"
     hb, _ = to_number(raw_hb)
+    factor = _hb_factor(hb_source_unit, hb)
     if hb is None or factor is None:
         return None
     hb_gl = hb * factor * 10.0
