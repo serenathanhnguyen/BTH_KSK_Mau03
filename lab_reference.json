@@ -17,6 +17,29 @@
   },
   "nuoc_tieu": {
     "titrong":  {"duoi": 1.000, "tren": 1.030, "don_vi": "", "can_xac_nhan": false},
-    "ph":       {"duoi": 4.8,   "tren": 8.0,   "don_vi": "", "can_xac_nhan": false}
+    "ph":       {"duoi": 4.8,   "tren": 8.0,   "don_vi": "", "can_xac_nhan": false},
+    "dinh_tinh": {
+      "_mo_ta": "12/11/2026 (yeu cau Jo): chi so DINH TINH nuoc tieu theo 2 kieu report/don vi. 'toi_da' = gia tri LON NHAT con coi la trong tham chieu; lon hon -> NT ghi x (in dam, to do). Ket qua dang chu Negative/Am tinh/Normal/Binh thuong luon la trong tham chieu. Nitrit la cot ma hoa (1 = am tinh, 0 = duong tinh). Nguong do Claude de xuat theo thang que thu nuoc tieu thong dung - CAN Jo xac nhan.",
+      "kieu_1": {
+        "_mo_ta": "Phieu dang Negative/Normal, don vi quy uoc (hinh Jo gui): Leukocyte Cell/uL, Keton mg/dL, Urobilinogen mg/dL, Bilirubin mg/dL, Protein mg/dL, Glucose mg/dL, Blood Cell/uL",
+        "bachcau":      {"don_vi": "Cell/uL", "toi_da": 0},
+        "hongcau":      {"don_vi": "Cell/uL", "toi_da": 0},
+        "protein":      {"don_vi": "mg/dL",   "toi_da": 0},
+        "glucose":      {"don_vi": "mg/dL",   "toi_da": 0},
+        "cetonic":      {"don_vi": "mg/dL",   "toi_da": 0},
+        "bilirubin":    {"don_vi": "mg/dL",   "toi_da": 0},
+        "urobilinogen": {"don_vi": "mg/dL",   "toi_da": 1}
+      },
+      "kieu_2": {
+        "_mo_ta": "Bang thong ke LIS don vi SI: Bach cau Leu/uL, Hong cau Ery/uL, Protein g/L, Glucose mmol/L, The cetonic mmol/L, Bilirubin umol/L, Urobilinogen umol/L",
+        "bachcau":      {"don_vi": "Leu/uL",  "toi_da": 0},
+        "hongcau":      {"don_vi": "Ery/uL",  "toi_da": 0},
+        "protein":      {"don_vi": "g/L",     "toi_da": 0},
+        "glucose":      {"don_vi": "mmol/L",  "toi_da": 0},
+        "cetonic":      {"don_vi": "mmol/L",  "toi_da": 0},
+        "bilirubin":    {"don_vi": "umol/L",  "toi_da": 0},
+        "urobilinogen": {"don_vi": "umol/L",  "toi_da": 17}
+      }
+    }
   }
 }
