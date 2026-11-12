@@ -64,6 +64,10 @@ def _record_font_flags(rec, col_id):
     if col_id == "huyetap":
         # nguong THA nguoi truong thanh: tam thu>=140 HOAC tam truong>=90 -> in dam + do (yeu cau Jo 30/09/2026)
         return bool(rec.get("huyetap_cao")), False
+    if col_id in ("nt", "ctm"):
+        # Nuoc tieu / CTM: ket qua "x" (co chi so ngoai tham chieu) -> in dam + do
+        # (yeu cau Jo 12/11/2026); "bt" giu nguyen dinh dang thuong
+        return str(rec.get(col_id) or "").strip().lower() == "x", False
     return False, False
 
 
