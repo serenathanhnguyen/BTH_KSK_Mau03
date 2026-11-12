@@ -275,38 +275,95 @@ URINE_QUALITATIVE_LABELS = {
     "urobilinogen": "Urobilinogen",
 }
 
-_AM_TINH_TEXTS = {"ÂM TÍNH", "AM TINH", "NEGATIVE", "NEG", "-", "0", "KHÔNG"}
+_AM_TINH_TEXTS = {
+    "ÂM TÍNH", "AM TINH", "NEGATIVE", "NEG", "(-)", "-", "0", "KHÔNG", "KHONG",
+    "NORMAL", "NORM", "BÌNH THƯỜNG", "BINH THUONG", "BT",
+}
+
+# Hai KIEU report nuoc tieu (yeu cau Jo 12/11/2026) - don vi khac nhau:
+#   kieu_1: phieu LIS dang "Negative/Normal" voi don vi quy uoc (Cell/uL, mg/dL)
+#   kieu_2: bang thong ke LIS dang don vi SI (Leu/uL, Ery/uL, g/L, mmol/L, umol/L)
+# Nguong "toi_da" (gia tri LON NHAT con coi la trong tham chieu) nam trong
+# lab_reference.json -> nuoc_tieu -> dinh_tinh; ban sao duoi day chi la du phong
+# khi file JSON thieu muc nay.
+URINE_KIEU_LABELS = {
+    "kieu_1": "Kiểu 1 — đơn vị quy ước (Cell/uL, mg/dL; kết quả Negative/Normal)",
+    "kieu_2": "Kiểu 2 — đơn vị SI (Leu/uL, Ery/uL, g/L, mmol/L, µmol/L)",
+}
+_URINE_LIMITS_FALLBACK = {
+    "kieu_1": {"bachcau": 0, "hongcau": 0, "protein": 0, "glucose": 0,
+               "cetonic": 0, "bilirubin": 0, "urobilinogen": 1},
+    "kieu_2": {"bachcau": 0, "hongcau": 0, "protein": 0, "glucose": 0,
+               "cetonic": 0, "bilirubin": 0, "urobilinogen": 17},
+}
+_LEADING_NUM_RE = re.compile(r"^\s*([+-]?\d+(?:[.,]\d+)?)")
 
 
-def urine_positive_findings(row, **kw):
+def _urine_limit(ref_nuoc_tieu, kieu, suffix):
+    """Gia tri toi da con trong tham chieu cua 1 chi so dinh tinh, theo kieu report."""
+    try:
+        return float(ref_nuoc_tieu["dinh_tinh"][kieu][suffix]["toi_da"])
+    except (KeyError, TypeError, ValueError):
+        return float(_URINE_LIMITS_FALLBACK.get(kieu, _URINE_LIMITS_FALLBACK["kieu_1"]).get(suffix, 0))
+
+
+def _urine_value_abnormal(suffix, raw, limit):
+    """True neu 1 o ket qua dinh tinh nuoc tieu NGOAI tham chieu."""
+    if isinstance(raw, (int, float)):
+        val = float(raw)
+    else:
+        text = _normalize_ws_upper(raw)
+        if text in _AM_TINH_TEXTS and suffix != "nitrit":
+            return False
+        if suffix == "nitrit" and text in _AM_TINH_TEXTS and text not in ("0", "KHÔNG", "KHONG"):
+            return False
+        m = _LEADING_NUM_RE.match(str(raw))
+        if m is None:
+            return True  # chu khac ("Duong tinh", "+", "Trace"...) -> ngoai tham chieu
+        val = float(m.group(1).replace(",", "."))
+    if suffix == "nitrit":
+        # Nitrit (neg/pos) la cot MA HOA: 1 = am tinh, 0 = duong tinh (Jo xac nhan 10/11/2026)
+        return val == 0
+    return val > limit
+
+
+def urine_positive_findings(row, ref_nuoc_tieu=None, kieu="kieu_1", **kw):
     """Quet cac chi so DINH TINH cua Tong phan tich nuoc tieu (xem
     URINE_QUALITATIVE_LABELS) trong 1 dong du lieu tho, tra ve danh sach cac
-    chuoi "{Ten chi so} [niệu] dương tính" cho nhung chi so co gia tri DUONG
-    TINH (so khac 0, hoac van ban khong phai mot trong cac cach ghi "am
-    tinh" da biet). Dung de dua vao cot DANH GIA - yeu cau Jo 30/09/2026 dot
-    3, them "[niệu]" theo yeu cau Jo 01/10/2026 dot 3 de phan biet voi cac
-    chi so cung ten trong mau (vd "Bạch cầu tăng"/"Hồng cầu tăng" cua CTM)."""
+    chuoi "{Ten chi so} [niệu] dương tính" cho nhung chi so NGOAI tham chieu.
+    Ket qua dang chu (Negative/Normal/Am tinh/Binh thuong) = trong tham chieu;
+    ket qua dang so duoc so voi nguong toi da theo KIEU report (don vi) trong
+    lab_reference.json. Dung de dua vao cot DANH GIA va cot NT (x) - yeu cau
+    Jo 30/09/2026 dot 3, them "[niệu]" theo yeu cau Jo 01/10/2026 dot 3, chia
+    2 kieu report/don vi theo yeu cau Jo 12/11/2026."""
+    ref = ref_nuoc_tieu or {}
     findings = []
     for suffix, label in URINE_QUALITATIVE_LABELS.items():
         raw = row.get(f"kskdk_xnnt_{suffix}")
         if raw is None or str(raw).strip() == "":
             continue
-        val, _ = to_number(raw)
-        if val is not None:
-            # Nitrit (neg/pos) la cot MA HOA, khong phai thang do dinh luong:
-            # 1 = am tinh, 0 = duong tinh (Jo xac nhan 10/11/2026);
-            # o trong = khong co ket qua (da bo qua o tren).
-            if suffix == "nitrit":
-                if val == 0:
-                    findings.append(f"{label} [niệu] dương tính")
-                continue
-            if val != 0:
-                findings.append(f"{label} [niệu] dương tính")
-            continue
-        text = _normalize_ws_upper(raw)
-        if text not in _AM_TINH_TEXTS:
+        if _urine_value_abnormal(suffix, raw, _urine_limit(ref, kieu, suffix)):
             findings.append(f"{label} [niệu] dương tính")
     return findings
+
+
+def urine_assess(row, ref_nuoc_tieu, kieu="kieu_1", **kw):
+    """Danh gia TONG HOP nuoc tieu cho cot NT: 'x' neu BAT KY chi so nao ngoai
+    tham chieu (Ti trong/pH theo khoang, cac chi so dinh tinh theo kieu report),
+    'bt' neu tat ca chi so doc duoc deu trong tham chieu, None neu khong co du
+    lieu nuoc tieu nao. Tra ve (flag, issues_titrong_ph, positives, warning)."""
+    flag, issues, warn = urine_flag(
+        row.get("kskdk_xnnt_titrong"), row.get("kskdk_xnnt_ph"), ref_nuoc_tieu
+    )
+    positives = urine_positive_findings(row, ref_nuoc_tieu, kieu)
+    has_qual = any(
+        row.get(f"kskdk_xnnt_{sfx}") not in (None, "") and str(row.get(f"kskdk_xnnt_{sfx}")).strip() != ""
+        for sfx in URINE_QUALITATIVE_LABELS
+    )
+    if flag is None and not has_qual:
+        return None, [], [], warn
+    final = "x" if (issues or positives) else "bt"
+    return final, list(issues or []), positives, None
 
 
 _ICD_STRIP_RE = re.compile(r"[^A-Z0-9.]")
