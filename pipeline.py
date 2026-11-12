@@ -320,7 +320,8 @@ def build_danhgia(row, icd_map=None, huyetap_cao=False, extra_findings=None):
 
 
 def process_row(row, index, manual_keyword_map, lab_ref, cbc_ref,
-                 hb_source_unit, urine_enabled=True, icd_fallback_enabled=True):
+                 hb_source_unit, urine_enabled=True, icd_fallback_enabled=True,
+                 urine_kieu="kieu_1"):
     """Xu ly MOT dong du lieu tho -> 1 dict ban ghi day du, kem 'canhbao'
     (danh sach ly do dua vao cot Canh bao) va 'warnings' (loi/thieu du lieu
     de dua vao bang kiem tra tren giao dien)."""
@@ -415,12 +416,15 @@ def process_row(row, index, manual_keyword_map, lab_ref, cbc_ref,
 
     # --- nuoc tieu (tuy chon) ---
     if urine_enabled:
-        flag, issues, w = T.urine_flag(
-            row.get("kskdk_xnnt_titrong"), row.get("kskdk_xnnt_ph"), lab_ref["nuoc_tieu"]
+        # NT = 'x' neu BAT KY chi so nuoc tieu nao ngoai tham chieu (ti trong/pH +
+        # cac chi so dinh tinh theo KIEU report/don vi) - yeu cau Jo 12/11/2026
+        flag, issues, positives, w = T.urine_assess(
+            row, lab_ref["nuoc_tieu"], urine_kieu
         )
         rec["nt"] = flag
-        if issues:
-            canhbao_parts.append("Nước tiểu ngoài tham chiếu: " + "; ".join(issues))
+        all_issues = list(issues) + [p.replace(" [niệu] dương tính", " dương tính") for p in positives]
+        if all_issues:
+            canhbao_parts.append("Nước tiểu ngoài tham chiếu: " + "; ".join(all_issues))
         if w:
             warnings.append(w)
     else:
@@ -474,7 +478,7 @@ def process_row(row, index, manual_keyword_map, lab_ref, cbc_ref,
             "Hb < 10 g/dL nhưng thiếu số liệu hồng cầu — chưa xác định được thiếu máu nặng theo QĐ 1613 (50.5)."
         )
     if urine_enabled:
-        extra_findings += T.urine_positive_findings(row)
+        extra_findings += T.urine_positive_findings(row, lab_ref["nuoc_tieu"], urine_kieu)
     # sinh hoa mau: chi so nao ngoai nguong -> ghi "<ten> tăng"/"<ten> giảm"
     # (yeu cau Jo 01/10/2026 dot 2); rieng ALT/AST gop chung thanh 1 muc
     # "Men gan tăng" (chi can 1 trong 2 vuot tren la du, khong tach rieng).
@@ -519,12 +523,12 @@ def process_row(row, index, manual_keyword_map, lab_ref, cbc_ref,
 
 def process_all(reader_result, manual_keyword_map, lab_ref, cbc_ref,
                  hb_source_unit, urine_enabled=True, icd_fallback_enabled=True,
-                 sort_by_ten=False):
+                 sort_by_ten=False, urine_kieu="kieu_1"):
     records = []
     for i, row in enumerate(reader_result.rows, start=1):
         records.append(process_row(
             row, i, manual_keyword_map, lab_ref, cbc_ref,
-            hb_source_unit, urine_enabled, icd_fallback_enabled,
+            hb_source_unit, urine_enabled, icd_fallback_enabled, urine_kieu,
         ))
     if sort_by_ten:
         records.sort(key=lambda r: T.vi_sort_key(r.get("ten") or ""))
