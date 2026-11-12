@@ -19,6 +19,7 @@ import reader
 import mapping as mapping_mod
 import pipeline
 import report as report_mod
+import transforms as T
 
 st.set_page_config(page_title="Bảng Tổng Hợp KSK", layout="wide")
 
@@ -124,7 +125,16 @@ def main():
         if hb_unit == "Tự động nhận dạng":
             hb_unit = "auto"
     with c2:
-        urine_enabled = st.checkbox("Tự đánh giá bt/x cho nước tiểu (tỉ trọng/pH)", value=True)
+        urine_enabled = st.checkbox("Tự đánh giá bt/x cho nước tiểu (tỉ trọng/pH + các chỉ số định tính)", value=True)
+        urine_kieu_label = st.selectbox(
+            "Kiểu report nước tiểu (đơn vị)",
+            list(T.URINE_KIEU_LABELS.values()), index=0,
+            help="Kiểu 1: Negative/Normal, đơn vị quy ước (Cell/uL, mg/dL) như phiếu Medinet. "
+                 "Kiểu 2: đơn vị SI (Leu/uL, Ery/uL, g/L, mmol/L, µmol/L) như bảng thống kê LIS. "
+                 "Ngưỡng từng kiểu chỉnh trong lab_reference.json → nuoc_tieu → dinh_tinh. "
+                 "Có chỉ số ngoài tham chiếu → ô Nước tiểu ghi 'x' (in đậm, tô đỏ).",
+        )
+        urine_kieu = {v: k for k, v in T.URINE_KIEU_LABELS.items()}[urine_kieu_label]
     with c3:
         icd_fallback = st.checkbox("Cho phép ghép ICD khi Ghi rõ & Kết luận đều trống", value=True)
     sort_by_ten = st.checkbox("Sắp xếp theo cột TÊN (A→Z, theo bảng chữ cái tiếng Việt)", value=True)
@@ -167,6 +177,7 @@ def main():
             rr, manual_map, lab_ref, cbc_ref,
             hb_source_unit=hb_unit, urine_enabled=urine_enabled,
             icd_fallback_enabled=icd_fallback, sort_by_ten=sort_by_ten,
+            urine_kieu=urine_kieu,
         )
         st.session_state["records"] = records
         st.session_state["meta"] = dict(
